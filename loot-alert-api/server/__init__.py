@@ -249,6 +249,35 @@ def create_app() -> Flask:
             result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()})
         return jsonify(result), 200
 
+    @app.route("/api/debug/stripe-key", methods=["GET"])
+    def debug_stripe_key():
+        from server.config import STRIPE_SECRET_KEY, STRIPE_PRICE_PRO, STRIPE_PRICE_ELITE, STRIPE_LINK_PRO, STRIPE_LINK_ELITE
+        import stripe as stripe_lib
+        stripe_lib.api_key = STRIPE_SECRET_KEY
+
+        key_info = {
+            "set": bool(STRIPE_SECRET_KEY),
+            "length": len(STRIPE_SECRET_KEY) if STRIPE_SECRET_KEY else 0,
+            "prefix": STRIPE_SECRET_KEY[:12] if STRIPE_SECRET_KEY else None,
+            "suffix": STRIPE_SECRET_KEY[-4:] if STRIPE_SECRET_KEY else None,
+            "mode": "test" if STRIPE_SECRET_KEY.startswith("sk_test_") else ("live" if STRIPE_SECRET_KEY.startswith("sk_live_") else "unknown"),
+        }
+        api_test = None
+        try:
+            balance = stripe_lib.Balance.retrieve()
+            api_test = {"ok": True, "account_livemode": balance.livemode}
+        except Exception as e:
+            api_test = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        return jsonify({
+            "key": key_info,
+            "api_call": api_test,
+            "price_pro_set": bool(STRIPE_PRICE_PRO),
+            "price_elite_set": bool(STRIPE_PRICE_ELITE),
+            "link_pro_set": bool(STRIPE_LINK_PRO),
+            "link_elite_set": bool(STRIPE_LINK_ELITE),
+        }), 200
+
     @app.route("/api/debug/email-test", methods=["GET"])
     def debug_email_test():
         """Send a test email via Resend. Usage: /api/debug/email-test?to=you@example.com"""
