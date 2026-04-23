@@ -209,6 +209,77 @@ def create_app() -> Flask:
 
         return jsonify(result), 200
 
+    @app.route("/api/debug/allegro-step", methods=["GET"])
+    def debug_allegro_step():
+        from flask import request as flask_req
+        import requests as rq
+        from server.config import ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET
+
+        query = flask_req.args.get("q", "Nike")
+        result = {"query": query, "steps": []}
+
+        try:
+            tok_resp = rq.post(
+                "https://allegro.pl/auth/oauth/token",
+                data={"grant_type": "client_credentials"},
+                auth=(ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET),
+                timeout=10,
+            )
+            result["steps"].append({"step": "token", "status": tok_resp.status_code})
+            token = tok_resp.json().get("access_token")
+
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.allegro.public.v1+json",
+            }
+            search_resp = rq.get(
+                "https://api.allegro.pl/offers/listing",
+                params={"phrase": query, "limit": 5},
+                headers=headers,
+                timeout=12,
+            )
+            result["steps"].append({
+                "step": "search",
+                "status": search_resp.status_code,
+                "body_prefix": search_resp.text[:1500],
+            })
+        except Exception as e:
+            result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()})
+        return jsonify(result), 200
+
+    @app.route("/api/debug/vinted-step", methods=["GET"])
+    def debug_vinted_step():
+        from flask import request as flask_req
+        import requests as rq
+        import urllib.parse
+        from server.scrapers import random_headers
+        from server.config import SCRAPER_API_KEY
+
+        query = flask_req.args.get("q", "Nike")
+        result = {"query": query, "scraper_api_set": bool(SCRAPER_API_KEY), "steps": []}
+
+        try:
+            target = f"https://www.vinted.pl/api/v2/catalog/items?search_text={urllib.parse.quote(query)}&per_page=3&order=newest_first"
+
+            # Step 1: direct (will likely fail with 403)
+            try:
+                r1 = rq.get(target, headers={**random_headers(), "Accept": "application/json"}, timeout=10)
+                result["steps"].append({"step": "direct", "status": r1.status_code, "body_prefix": r1.text[:300]})
+            except Exception as e:
+                result["steps"].append({"step": "direct", "error": str(e)})
+
+            # Step 2: via ScraperAPI
+            if SCRAPER_API_KEY:
+                via = f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}&url={urllib.parse.quote(target, safe='')}"
+                try:
+                    r2 = rq.get(via, headers={"Accept": "application/json"}, timeout=30)
+                    result["steps"].append({"step": "scraperapi", "status": r2.status_code, "body_prefix": r2.text[:500]})
+                except Exception as e:
+                    result["steps"].append({"step": "scraperapi", "error": str(e)})
+        except Exception as e:
+            result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}"})
+        return jsonify(result), 200
+
     @app.route("/api/debug/poll-now", methods=["POST"])
     def debug_poll_now():
         """Force the scheduler to run the polling loop right now (for both plans)."""
