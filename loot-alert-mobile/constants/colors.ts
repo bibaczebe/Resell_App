@@ -1,0 +1,18 @@
+export const Colors = {
+  background: "#0A0A0B",
+  surface: "rgba(255,255,255,0.03)",
+  border: "rgba(255,255,255,0.07)",
+  borderStrong: "rgba(255,255,255,0.12)",
+  text: "#F8F8F8",
+  textMuted: "rgba(255,255,255,0.45)",
+  textFaint: "rgba(255,255,255,0.2)",
+  violet: "#7C3AED",
+  violetLight: "#A78BFA",
+  fuchsia: "#D946EF",
+  indigo: "#6366F1",
+  success: "#22C55E",
+  warning: "#F59E0B",
+  error: "#EF4444",
+  tabBar: "#111113",
+  card: "rgba(255,255,255,0.025)",
+} as const;
