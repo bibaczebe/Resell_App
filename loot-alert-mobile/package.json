@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
+    "babel-preset-expo": "~54.0.10",
     "expo": "~54.0.33",
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
@@ -27,7 +28,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
-    "babel-preset-expo": "^55.0.18",
     "tailwindcss": "^4.2.4",
     "typescript": "~5.9.2"
   },
