@@ -7,6 +7,8 @@ import { router } from "expo-router";
 import { MotiView } from "moti";
 import { Colors } from "../../constants/colors";
 import { login } from "../../lib/auth";
+import { registerForPushNotifications } from "../../lib/notifications";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
@@ -23,6 +25,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
+      // Request push permission after successful login
+      registerForPushNotifications().catch(() => {});
       router.replace("/(tabs)");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Błąd logowania");
@@ -36,6 +40,7 @@ export default function LoginScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <AuroraBg />
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <MotiView
           from={{ opacity: 0, translateY: 20 }}

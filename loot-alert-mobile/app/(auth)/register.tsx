@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from "react-native";
 import { router } from "expo-router";
@@ -8,6 +8,7 @@ import { MotiView } from "moti";
 import { Colors } from "../../constants/colors";
 import { register } from "../../lib/auth";
 import { registerForPushNotifications } from "../../lib/notifications";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState("");
@@ -47,6 +48,7 @@ export default function RegisterScreen() {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <AuroraBg />
       <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
         <MotiView
           from={{ opacity: 0, translateY: 20 }}

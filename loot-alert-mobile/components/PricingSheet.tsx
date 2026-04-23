@@ -1,38 +1,48 @@
-import { View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, Modal } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, Modal, ScrollView } from "react-native";
 import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
 import { api } from "../lib/api";
+
+interface Plan {
+  name: string;
+  price: number;
+  currency: string;
+  period: string;
+  features: string[];
+  payment_link: string;
+  price_id: string;
+}
+
+interface Plans {
+  pro: Plan;
+  elite: Plan;
+}
 
 interface Props {
   visible: boolean;
   onClose: () => void;
 }
 
-const FEATURES_FREE = ["3 aktywne alerty", "Polling co 5 min", "Push notifications"];
-const FEATURES_PREMIUM = [
-  "Nieograniczone alerty",
-  "Polling co 2 min (priorytet)",
-  "Push notifications",
-  "Wsparcie priorytetowe",
-];
-
 export function PricingSheet({ visible, onClose }: Props) {
-  const [loading, setLoading] = useState(false);
+  const [plans, setPlans] = useState<Plans | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
 
-  async function handleUpgrade() {
-    setLoading(true);
+  useEffect(() => {
+    if (visible && !plans) {
+      api.get<Plans>("/api/stripe/plans").then(setPlans).catch(() => {});
+    }
+  }, [visible, plans]);
+
+  async function openPlan(plan: Plan) {
+    if (!plan.payment_link) return;
+    setOpening(plan.name);
     try {
-      const data = await api.post<{ url: string }>("/api/stripe/checkout", {
-        base_url: "lootalert://",
-      });
-      if (data.url) await Linking.openURL(data.url);
+      await Linking.openURL(plan.payment_link);
       onClose();
-    } catch {
-      // silent
     } finally {
-      setLoading(false);
+      setOpening(null);
     }
   }
 
@@ -41,50 +51,56 @@ export function PricingSheet({ visible, onClose }: Props) {
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} onPress={onClose} />
         <MotiView
-          from={{ translateY: 400 }}
+          from={{ translateY: 500 }}
           animate={{ translateY: 0 }}
-          exit={{ translateY: 400 }}
           transition={{ type: "timing", duration: 350 }}
           style={styles.sheet}
         >
           <View style={styles.handle} />
-          <Text style={styles.title}>Upgrade do Premium</Text>
-          <Text style={styles.sub}>Odblokuj nieograniczone alerty i szybszy polling</Text>
 
-          <View style={styles.plansRow}>
-            <View style={styles.planCard}>
-              <Text style={styles.planName}>Free</Text>
-              <Text style={styles.planPrice}>0 zł</Text>
-              {FEATURES_FREE.map((f) => (
-                <View key={f} style={styles.featureRow}>
-                  <Feather name="check" size={13} color={Colors.textMuted} />
-                  <Text style={styles.featureText}>{f}</Text>
-                </View>
-              ))}
-            </View>
+          <Text style={styles.title}>Wybierz swój plan</Text>
+          <Text style={styles.sub}>Anuluj w każdej chwili. Bez zobowiązań.</Text>
 
-            <View style={[styles.planCard, styles.premiumCard]}>
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularText}>Popularny</Text>
-              </View>
-              <Text style={[styles.planName, { color: Colors.violetLight }]}>Premium</Text>
-              <Text style={[styles.planPrice, { color: Colors.text }]}>9,99 zł<Text style={styles.per}>/mies.</Text></Text>
-              {FEATURES_PREMIUM.map((f) => (
-                <View key={f} style={styles.featureRow}>
-                  <Feather name="check" size={13} color={Colors.violetLight} />
-                  <Text style={[styles.featureText, { color: Colors.text }]}>{f}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
+            {/* FREE PLAN */}
+            <PlanCard
+              name="Free"
+              price="0 zł"
+              tag="Darmowy"
+              features={["3 aktywne alerty", "Polling co 5 min", "Push notifications"]}
+              onPress={() => {}}
+              disabled
+              current
+            />
 
-          <TouchableOpacity style={styles.upgradeBtn} onPress={handleUpgrade} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.upgradeBtnText}>Przejdź na Premium</Text>
+            {/* PRO PLAN */}
+            {plans?.pro && (
+              <PlanCard
+                name={plans.pro.name}
+                price={`${plans.pro.price.toString().replace(".", ",")} zł`}
+                period={`/${plans.pro.period}`}
+                tag="Popularny"
+                highlighted
+                features={plans.pro.features}
+                onPress={() => openPlan(plans.pro)}
+                loading={opening === plans.pro.name}
+              />
             )}
-          </TouchableOpacity>
+
+            {/* ELITE PLAN */}
+            {plans?.elite && (
+              <PlanCard
+                name={plans.elite.name}
+                price={`${plans.elite.price.toString().replace(".", ",")} zł`}
+                period={`/${plans.elite.period}`}
+                tag="Dla power-userów"
+                accent="fuchsia"
+                features={plans.elite.features}
+                onPress={() => openPlan(plans.elite)}
+                loading={opening === plans.elite.name}
+              />
+            )}
+          </ScrollView>
 
           <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
             <Text style={styles.cancelText}>Może później</Text>
@@ -95,67 +111,122 @@ export function PricingSheet({ visible, onClose }: Props) {
   );
 }
 
+interface PlanCardProps {
+  name: string;
+  price: string;
+  period?: string;
+  tag: string;
+  features: string[];
+  onPress: () => void;
+  highlighted?: boolean;
+  accent?: "fuchsia";
+  loading?: boolean;
+  disabled?: boolean;
+  current?: boolean;
+}
+
+function PlanCard({ name, price, period, tag, features, onPress, highlighted, accent, loading, disabled, current }: PlanCardProps) {
+  const borderColor = accent === "fuchsia" ? Colors.fuchsia : highlighted ? Colors.violet : Colors.border;
+  const bgColor = accent === "fuchsia"
+    ? "rgba(217,70,239,0.08)"
+    : highlighted
+      ? "rgba(124,58,237,0.08)"
+      : Colors.surface;
+  const accentColor = accent === "fuchsia" ? Colors.fuchsia : Colors.violetLight;
+
+  return (
+    <View style={[styles.planCard, { borderColor, backgroundColor: bgColor }]}>
+      {!current && (highlighted || accent === "fuchsia") && (
+        <View style={[styles.badge, { backgroundColor: accentColor }]}>
+          <Text style={styles.badgeText}>{tag}</Text>
+        </View>
+      )}
+      <View style={styles.planHead}>
+        <Text style={[styles.planName, (highlighted || accent) && { color: accentColor }]}>{name}</Text>
+        <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
+          <Text style={styles.planPrice}>{price}</Text>
+          {period && <Text style={styles.planPer}>{period}</Text>}
+        </View>
+      </View>
+
+      {features.map((f) => (
+        <View key={f} style={styles.featureRow}>
+          <Feather name="check" size={14} color={accentColor} />
+          <Text style={styles.featureText}>{f}</Text>
+        </View>
+      ))}
+
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[
+          styles.ctaBtn,
+          { backgroundColor: current ? "transparent" : accentColor },
+          current && { borderWidth: 1, borderColor: Colors.border },
+        ]}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={[styles.ctaText, current && { color: Colors.textMuted }]}>
+            {current ? "Aktualny plan" : `Wybierz ${name}`}
+          </Text>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: "flex-end" },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.6)" },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.65)" },
   sheet: {
-    backgroundColor: "#111113",
+    backgroundColor: "#0F0F12",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     padding: 24,
-    paddingBottom: 40,
+    paddingBottom: 32,
     borderTopWidth: 1,
     borderColor: Colors.border,
   },
-  handle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: "center",
-    marginBottom: 20,
-  },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: "center", marginBottom: 18 },
   title: { fontSize: 22, fontWeight: "800", color: Colors.text, textAlign: "center" },
   sub: { fontSize: 13, color: Colors.textMuted, textAlign: "center", marginTop: 6, marginBottom: 20 },
-  plansRow: { flexDirection: "row", gap: 12, marginBottom: 20 },
+
   planCard: {
-    flex: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.surface,
-    padding: 14,
-  },
-  premiumCard: {
-    borderColor: Colors.violet,
-    backgroundColor: "rgba(124,58,237,0.08)",
+    padding: 18,
+    marginBottom: 12,
     position: "relative",
   },
-  popularBadge: {
+  badge: {
     position: "absolute",
     top: -10,
-    right: 12,
-    backgroundColor: Colors.violet,
-    borderRadius: 20,
+    right: 14,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
-  popularText: { color: "#fff", fontSize: 10, fontWeight: "700" },
-  planName: { color: Colors.textMuted, fontSize: 12, fontWeight: "700", marginBottom: 4, letterSpacing: 1 },
-  planPrice: { color: Colors.text, fontSize: 20, fontWeight: "800", marginBottom: 12 },
-  per: { fontSize: 13, fontWeight: "400", color: Colors.textMuted },
-  featureRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
-  featureText: { color: Colors.textMuted, fontSize: 12, flex: 1 },
-  upgradeBtn: {
-    backgroundColor: Colors.violet,
-    borderRadius: 14,
-    paddingVertical: 15,
-    alignItems: "center",
-    marginBottom: 12,
-    shadowColor: Colors.violet,
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 4 },
+  badgeText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 0.5 },
+  planHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 14,
   },
-  upgradeBtnText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  cancelBtn: { alignItems: "center", paddingVertical: 8 },
+  planName: { color: Colors.text, fontSize: 17, fontWeight: "700", letterSpacing: 0.5 },
+  planPrice: { color: Colors.text, fontSize: 22, fontWeight: "800" },
+  planPer: { color: Colors.textMuted, fontSize: 12, fontWeight: "500", marginBottom: 3, marginLeft: 2 },
+  featureRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
+  featureText: { color: Colors.textMuted, fontSize: 13, flex: 1 },
+  ctaBtn: {
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: 14,
+  },
+  ctaText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  cancelBtn: { alignItems: "center", paddingVertical: 12, marginTop: 8 },
   cancelText: { color: Colors.textMuted, fontSize: 14 },
 });

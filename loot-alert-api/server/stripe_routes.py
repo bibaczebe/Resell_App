@@ -2,11 +2,51 @@ import stripe
 from flask import Blueprint, request, jsonify, current_app
 from server.db import get_db
 from server.auth import require_auth
-from server.config import STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_PREMIUM
+from server.config import (
+    STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRICE_PREMIUM, STRIPE_PRICE_PRO, STRIPE_PRICE_ELITE,
+    STRIPE_LINK_PRO, STRIPE_LINK_ELITE,
+)
 
 stripe.api_key = STRIPE_SECRET_KEY
 
 stripe_bp = Blueprint("stripe", __name__)
+
+
+@stripe_bp.route("/api/stripe/plans", methods=["GET"])
+def plans():
+    """Return available subscription plans with direct Payment Links."""
+    return jsonify({
+        "pro": {
+            "name": "Pro",
+            "price": 9.99,
+            "currency": "PLN",
+            "period": "miesiąc",
+            "features": [
+                "Nieograniczone alerty",
+                "Polling co 2 min (priorytet)",
+                "Push notifications",
+                "Wszystkie portale (OLX, Vinted, Allegro)",
+            ],
+            "payment_link": STRIPE_LINK_PRO,
+            "price_id": STRIPE_PRICE_PRO or STRIPE_PRICE_PREMIUM,
+        },
+        "elite": {
+            "name": "Elite",
+            "price": 19.99,
+            "currency": "PLN",
+            "period": "miesiąc",
+            "features": [
+                "Wszystko z planu Pro",
+                "Polling co 60 sekund",
+                "Wielokanałowe powiadomienia",
+                "Wczesny dostęp do nowych funkcji",
+                "Wsparcie priorytetowe 24/7",
+            ],
+            "payment_link": STRIPE_LINK_ELITE,
+            "price_id": STRIPE_PRICE_ELITE,
+        },
+    }), 200
 
 
 @stripe_bp.route("/api/stripe/checkout", methods=["POST"])

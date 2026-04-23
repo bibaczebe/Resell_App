@@ -1,15 +1,16 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   View, Text, FlatList, RefreshControl, StyleSheet,
   TouchableOpacity, Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { AlertCard, Alert as AlertType } from "../../components/AlertCard";
 import { api } from "../../lib/api";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -29,7 +30,8 @@ export default function DashboardScreen() {
     }
   }, []);
 
-  useEffect(() => { loadAlerts(); }, [loadAlerts]);
+  // Reload every time this tab becomes focused (e.g. after creating alert)
+  useFocusEffect(useCallback(() => { loadAlerts(); }, [loadAlerts]));
 
   async function handleToggle(id: number, active: boolean) {
     try {
@@ -64,14 +66,15 @@ export default function DashboardScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <AuroraBg />
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>LootAlert</Text>
-          <Text style={styles.subtitle}>{activeCount} aktywnych alertów</Text>
+          <Text style={styles.logo}>LOOTALERT</Text>
+          <Text style={styles.greeting}>
+            {activeCount > 0 ? `${activeCount} aktywnych ` : "Zacznij łapać "}
+            <Text style={{ color: Colors.violetLight }}>okazje</Text>
+          </Text>
         </View>
-        <TouchableOpacity style={styles.fab} onPress={() => router.push("/(tabs)/new")}>
-          <Feather name="plus" size={22} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       {loading ? (
@@ -135,20 +138,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 16,
   },
-  greeting: { fontSize: 24, fontWeight: "800", color: Colors.text },
-  subtitle: { fontSize: 13, color: Colors.textMuted, marginTop: 2 },
-  fab: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.violet,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: Colors.violet,
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
+  logo: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: Colors.violetLight,
+    letterSpacing: 3,
+    marginBottom: 6,
   },
+  greeting: { fontSize: 26, fontWeight: "800", color: Colors.text, lineHeight: 32 },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyTitle: { fontSize: 18, fontWeight: "600", color: Colors.text, marginBottom: 8 },
