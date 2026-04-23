@@ -149,6 +149,66 @@ def create_app() -> Flask:
 
         return jsonify(results), 200
 
+    @app.route("/api/debug/version", methods=["GET"])
+    def debug_version():
+        import os
+        import inspect
+        from server.scrapers import olx, vinted, allegro
+        return jsonify({
+            "olx_file": inspect.getfile(olx),
+            "olx_size": os.path.getsize(inspect.getfile(olx)),
+            "vinted_size": os.path.getsize(inspect.getfile(vinted)),
+            "allegro_size": os.path.getsize(inspect.getfile(allegro)),
+        }), 200
+
+    @app.route("/api/debug/olx-step", methods=["GET"])
+    def debug_olx_step():
+        """Run OLX scraper step-by-step with verbose logging"""
+        from flask import request as flask_req
+        import requests as rq
+        from server.scrapers import random_headers
+
+        query = flask_req.args.get("q", "Nike")
+        result = {"query": query, "steps": []}
+
+        try:
+            params = {"query": query, "limit": 5, "offset": 0}
+            result["steps"].append({"step": "building_params", "params": params})
+
+            resp = rq.get(
+                "https://www.olx.pl/api/v1/offers/",
+                params=params,
+                headers=random_headers(),
+                timeout=12,
+            )
+            result["steps"].append({"step": "http_response", "status": resp.status_code})
+
+            resp.raise_for_status()
+            data = resp.json()
+            result["steps"].append({"step": "json_parsed", "keys": list(data.keys()), "data_len": len(data.get("data", []))})
+
+            parsed = []
+            for item in data.get("data", []):
+                price_val = None
+                for param in item.get("params", []):
+                    if param.get("key") == "price":
+                        value_obj = param.get("value", {})
+                        price_val = {
+                            "raw_value": value_obj.get("value"),
+                            "arranged": value_obj.get("arranged"),
+                            "label": value_obj.get("label"),
+                        }
+                parsed.append({
+                    "id": item.get("id"),
+                    "title": item.get("title"),
+                    "price_param": price_val,
+                })
+            result["steps"].append({"step": "items_parsed", "items": parsed[:3]})
+        except Exception as e:
+            result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()})
+
+        return jsonify(result), 200
+
     @app.route("/api/debug/poll-now", methods=["POST"])
     def debug_poll_now():
         """Force the scheduler to run the polling loop right now (for both plans)."""
