@@ -25,13 +25,9 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const user = await login(normalizedEmail, password);
+      await login(normalizedEmail, password);
       registerForPushNotifications().catch(() => {});
-      if (!user.is_verified) {
-        router.replace({ pathname: "/(auth)/verify", params: { email: normalizedEmail } });
-      } else {
-        router.replace("/(tabs)");
-      }
+      router.replace("/(tabs)");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Błąd logowania");
     } finally {

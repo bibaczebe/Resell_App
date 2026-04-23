@@ -22,11 +22,13 @@ def create_app() -> Flask:
     from server.alerts import alerts_bp
     from server.push import push_bp
     from server.stripe_routes import stripe_bp
+    from server.legal import legal_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(alerts_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(stripe_bp)
+    app.register_blueprint(legal_bp)
 
     @app.route("/health")
     def health():
@@ -246,6 +248,53 @@ def create_app() -> Flask:
         except Exception as e:
             result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()})
         return jsonify(result), 200
+
+    @app.route("/api/debug/email-test", methods=["GET"])
+    def debug_email_test():
+        """Send a test email via Resend. Usage: /api/debug/email-test?to=you@example.com"""
+        from flask import request as flask_req
+        from server.config import RESEND_API_KEY, RESEND_FROM_EMAIL
+        from server.emails import send_verification_code
+
+        if not RESEND_API_KEY:
+            return jsonify({
+                "status": "error",
+                "error": "RESEND_API_KEY not set in Railway Variables",
+                "hint": "Add RESEND_API_KEY=re_xxx in Railway → Variables",
+            }), 200
+
+        to = flask_req.args.get("to")
+        if not to:
+            return jsonify({
+                "status": "error",
+                "error": "Missing ?to=email parameter",
+            }), 400
+
+        try:
+            import resend
+            resend.api_key = RESEND_API_KEY
+            resp = resend.Emails.send({
+                "from": RESEND_FROM_EMAIL,
+                "to": [to],
+                "subject": "LootAlert – Test emaila",
+                "html": "<h1>LootAlert works!</h1><p>Jeśli widzisz tego maila, Resend działa poprawnie.</p>",
+            })
+            return jsonify({
+                "status": "ok",
+                "from": RESEND_FROM_EMAIL,
+                "to": to,
+                "resend_id": resp.get("id") if isinstance(resp, dict) else str(resp),
+                "key_prefix": RESEND_API_KEY[:8] + "...",
+            }), 200
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "error": str(e),
+                "type": type(e).__name__,
+                "key_prefix": RESEND_API_KEY[:8] + "..." if RESEND_API_KEY else None,
+                "from": RESEND_FROM_EMAIL,
+                "trace": traceback.format_exc(),
+            }), 200
 
     @app.route("/api/debug/vinted-step", methods=["GET"])
     def debug_vinted_step():

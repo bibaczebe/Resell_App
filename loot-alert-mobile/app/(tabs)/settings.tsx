@@ -164,10 +164,16 @@ export default function SettingsScreen() {
             <Feather name="info" size={16} color={Colors.textMuted} />
             <Text style={styles.rowText}>Wersja 1.0.0</Text>
           </View>
-          <View style={styles.row}>
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/legal/privacy")}>
             <Feather name="shield" size={16} color={Colors.textMuted} />
             <Text style={styles.rowText}>Polityka prywatności</Text>
-          </View>
+            <Feather name="chevron-right" size={16} color={Colors.textFaint} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={() => router.push("/legal/terms")}>
+            <Feather name="file-text" size={16} color={Colors.textMuted} />
+            <Text style={styles.rowText}>Regulamin</Text>
+            <Feather name="chevron-right" size={16} color={Colors.textFaint} />
+          </TouchableOpacity>
         </GlassCard>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
