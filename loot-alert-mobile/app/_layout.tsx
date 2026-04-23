@@ -5,7 +5,6 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import * as Notifications from "expo-notifications";
-import { isLoggedIn } from "../lib/auth";
 import { Colors } from "../constants/colors";
 import {
   registerForPushNotifications,
@@ -27,35 +26,19 @@ interface InAppBanner {
   title: string;
   body: string;
   alertId?: number;
-  listingUrl?: string;
 }
 
 export default function RootLayout() {
-  const [ready, setReady] = useState(false);
   const [banner, setBanner] = useState<InAppBanner | null>(null);
   const bannerAnim = useRef(new Animated.Value(-80)).current;
   const bannerTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auth check + push token registration on app start
+  // Register push token silently; does not block startup
   useEffect(() => {
-    (async () => {
-      try {
-        const loggedIn = await isLoggedIn();
-        if (!loggedIn) {
-          router.replace("/(auth)/login");
-        } else {
-          registerForPushNotifications().catch(() => {});
-        }
-      } catch (e) {
-        console.warn("Startup error:", e);
-        router.replace("/(auth)/login");
-      } finally {
-        setReady(true);
-      }
-    })();
+    registerForPushNotifications().catch(() => {});
   }, []);
 
-  // Show in-app banner when notification arrives while app is open
+  // Show in-app banner when push arrives while app is open
   useEffect(() => {
     const sub = addNotificationListener((notification) => {
       const { title, body, data } = notification.request.content;
@@ -68,7 +51,7 @@ export default function RootLayout() {
     return () => sub.remove();
   }, []);
 
-  // Navigate on tap of push notification (app in background/killed)
+  // Navigate on tap of push (app in background/killed)
   useEffect(() => {
     const sub = addResponseListener((response) => {
       const data = response.notification.request.content.data as Record<string, unknown>;
@@ -99,17 +82,12 @@ export default function RootLayout() {
     }).start(() => setBanner(null));
   }
 
-  if (!ready) {
-    return <View style={{ flex: 1, backgroundColor: Colors.background }} />;
-  }
-
   return (
     <SafeAreaProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: Colors.background }}>
         <StatusBar style="light" backgroundColor={Colors.background} />
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: Colors.background } }} />
 
-        {/* In-app notification banner */}
         {banner && (
           <Animated.View
             style={[styles.banner, { transform: [{ translateY: bannerAnim }] }]}
