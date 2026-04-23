@@ -68,14 +68,75 @@ def create_app() -> Flask:
 
     @app.route("/api/debug/scrape", methods=["GET"])
     def debug_scrape():
-        """Run a live scraper test for a query. Usage: /api/debug/scrape?q=Nike&max_price=150"""
+        """Run a live scraper test with verbose HTTP debug info."""
         from flask import request as flask_req
-        from server.scrapers import olx, vinted, allegro
+        import requests as rq
+        from server.config import ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET, SCRAPER_API_KEY
+        from server.scrapers import olx, vinted, allegro, random_headers
 
-        query = flask_req.args.get("q", "Nike Air Max")
+        query = flask_req.args.get("q", "Nike")
         max_price = flask_req.args.get("max_price", type=float)
 
-        results = {"query": query, "max_price": max_price, "sources": {}}
+        results = {
+            "query": query,
+            "max_price": max_price,
+            "env": {
+                "allegro_client_id_set": bool(ALLEGRO_CLIENT_ID),
+                "allegro_client_secret_set": bool(ALLEGRO_CLIENT_SECRET),
+                "scraper_api_key_set": bool(SCRAPER_API_KEY),
+            },
+            "sources": {},
+            "raw_tests": {},
+        }
+
+        # Raw HTTP probes – minimal direct calls
+        try:
+            r = rq.get(
+                "https://www.olx.pl/api/v1/offers/",
+                params={"query": query, "limit": 3},
+                headers=random_headers(),
+                timeout=10,
+            )
+            results["raw_tests"]["olx"] = {
+                "status": r.status_code,
+                "body_prefix": r.text[:400],
+            }
+        except Exception as e:
+            results["raw_tests"]["olx"] = {"error": f"{type(e).__name__}: {e}"}
+
+        try:
+            h = random_headers()
+            h["Accept"] = "application/json"
+            r = rq.get(
+                "https://www.vinted.pl/api/v2/catalog/items",
+                params={"search_text": query, "per_page": 3},
+                headers=h,
+                timeout=10,
+            )
+            results["raw_tests"]["vinted"] = {
+                "status": r.status_code,
+                "body_prefix": r.text[:400],
+            }
+        except Exception as e:
+            results["raw_tests"]["vinted"] = {"error": f"{type(e).__name__}: {e}"}
+
+        try:
+            if ALLEGRO_CLIENT_ID and ALLEGRO_CLIENT_SECRET:
+                t = rq.post(
+                    "https://allegro.pl/auth/oauth/token",
+                    data={"grant_type": "client_credentials"},
+                    auth=(ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET),
+                    timeout=10,
+                )
+                results["raw_tests"]["allegro_token"] = {
+                    "status": t.status_code,
+                    "body_prefix": t.text[:400],
+                }
+            else:
+                results["raw_tests"]["allegro_token"] = {"skipped": "missing credentials"}
+        except Exception as e:
+            results["raw_tests"]["allegro_token"] = {"error": f"{type(e).__name__}: {e}"}
+
         for name, module in (("olx", olx), ("vinted", vinted), ("allegro", allegro)):
             try:
                 items = module.search(keywords=query, max_price=max_price, limit=5)
@@ -84,7 +145,8 @@ def create_app() -> Flask:
                     "sample": [{"title": i.title, "price": i.price, "url": i.url, "id": i.id} for i in items[:3]],
                 }
             except Exception as e:
-                results["sources"][name] = {"error": f"{type(e).__name__}: {e}"}
+                results["sources"][name] = {"error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()}
+
         return jsonify(results), 200
 
     @app.route("/api/debug/poll-now", methods=["POST"])
