@@ -1,7 +1,10 @@
 import requests
 import urllib.parse
+import logging
 from server.scrapers import Listing, random_headers
 from server.config import SCRAPER_API_KEY
+
+logger = logging.getLogger(__name__)
 
 VINTED_API_BASE = "https://www.vinted.pl/api/v2"
 
@@ -13,14 +16,12 @@ CONDITION_MAP = {
 
 
 def _via_scraper(target_url: str) -> str:
-    # Vinted aggressively blocks datacenter IPs – we always route through ScraperAPI when available
     if SCRAPER_API_KEY:
         return f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}&url={urllib.parse.quote(target_url, safe='')}"
     return target_url
 
 
 def _get_session_cookie() -> dict:
-    """Fetch anonymous session cookies from Vinted homepage (routed via ScraperAPI if set)."""
     try:
         home = "https://www.vinted.pl/"
         r = requests.get(
@@ -33,38 +34,33 @@ def _get_session_cookie() -> dict:
         return {}
 
 
+def _build_url(keywords: str, max_price: float | None, min_price: float,
+               condition: str, limit: int) -> str:
+    parts = [
+        ("search_text", keywords),
+        ("per_page", str(min(limit, 50))),
+        ("order", "newest_first"),
+    ]
+    if max_price:
+        parts.append(("price_to", str(max_price)))
+    if min_price and min_price > 0:
+        parts.append(("price_from", str(min_price)))
+    for sid in CONDITION_MAP.get(condition, []):
+        parts.append(("status_ids[]", str(sid)))
+
+    qs = urllib.parse.urlencode(parts)
+    return f"{VINTED_API_BASE}/catalog/items?{qs}"
+
+
 def search(keywords: str, max_price: float | None = None, min_price: float = 0,
            condition: str = "any", size: str | None = None, limit: int = 50) -> list[Listing]:
-    params = {
-        "search_text": keywords,
-        "per_page": min(limit, 50),
-        "order": "newest_first",
-    }
-    if max_price:
-        params["price_to"] = max_price
-    if min_price and min_price > 0:
-        params["price_from"] = min_price
-
-    status_ids = CONDITION_MAP.get(condition, [])
-    if status_ids:
-        for sid in status_ids:
-            params.setdefault("status_ids[]", []).append(sid) if isinstance(params.get("status_ids[]"), list) else None
-        # Simpler: build manually below
-        del params["status_ids[]"] if "status_ids[]" in params else None
-
-    # Build URL manually with proper encoding
-    qs = urllib.parse.urlencode(params, doseq=True)
-    for sid in status_ids:
-        qs += f"&status_ids[]={sid}"
-
-    target_url = f"{VINTED_API_BASE}/catalog/items?{qs}"
+    target_url = _build_url(keywords, max_price, min_price, condition, limit)
 
     headers = {
         **random_headers(),
         "Accept": "application/json",
         "Referer": "https://www.vinted.pl/",
     }
-
     cookies = _get_session_cookie()
 
     try:
@@ -72,12 +68,14 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             _via_scraper(target_url),
             headers=headers,
             cookies=cookies,
-            timeout=15,
+            timeout=20,
         )
         if resp.status_code != 200:
+            logger.warning("Vinted returned %s: %s", resp.status_code, resp.text[:200])
             return []
         data = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("Vinted request failed: %s", e)
         return []
 
     listings = []
@@ -91,7 +89,11 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
         image_url = None
         photo_obj = item.get("photo")
         if isinstance(photo_obj, dict):
-            image_url = photo_obj.get("url") or (photo_obj.get("thumbnails") or [{}])[0].get("url")
+            image_url = photo_obj.get("url")
+            if not image_url:
+                thumbs = photo_obj.get("thumbnails") or []
+                if thumbs and isinstance(thumbs[0], dict):
+                    image_url = thumbs[0].get("url")
 
         url = item.get("url", "")
         if url and not url.startswith("http"):
