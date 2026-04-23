@@ -103,12 +103,20 @@ export default function SettingsScreen() {
           <View style={styles.row}>
             <Feather name="mail" size={16} color={Colors.textMuted} />
             <Text style={styles.rowText} numberOfLines={1}>{user?.email}</Text>
-            {user?.is_verified && (
+            {user?.is_verified ? (
               <View style={styles.verifiedBadge}>
                 <Feather name="check" size={10} color={Colors.success} />
                 <Text style={styles.verifiedText}>Zweryfikowany</Text>
               </View>
-            )}
+            ) : user ? (
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: "/(auth)/verify", params: { email: user.email } })}
+                style={styles.verifyBadge}
+              >
+                <Feather name="alert-circle" size={10} color={Colors.warning} />
+                <Text style={styles.verifyText}>Zweryfikuj</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
           <View style={styles.row}>
             <Feather
@@ -207,6 +215,16 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   verifiedText: { color: Colors.success, fontSize: 10, fontWeight: "700" },
+  verifyBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(245,158,11,0.12)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  verifyText: { color: Colors.warning, fontSize: 10, fontWeight: "700" },
   syncBtn: {
     flexDirection: "row",
     alignItems: "center",

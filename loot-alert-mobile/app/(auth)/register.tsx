@@ -34,13 +34,11 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const { requiresVerification } = await register(normalizedEmail, password);
+      await register(normalizedEmail, password);
       registerForPushNotifications().catch(() => {});
-      if (requiresVerification) {
-        router.replace({ pathname: "/(auth)/verify", params: { email: normalizedEmail } });
-      } else {
-        router.replace("/(tabs)");
-      }
+      // Verification is optional; user lands on dashboard immediately.
+      // They can verify later from Settings if they want.
+      router.replace("/(tabs)");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Błąd rejestracji");
     } finally {
