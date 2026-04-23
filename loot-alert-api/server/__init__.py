@@ -66,6 +66,38 @@ def create_app() -> Flask:
         except Exception as e:
             return jsonify({"status": "error", "error": str(e), "trace": traceback.format_exc()}), 500
 
+    @app.route("/api/debug/scrape", methods=["GET"])
+    def debug_scrape():
+        """Run a live scraper test for a query. Usage: /api/debug/scrape?q=Nike&max_price=150"""
+        from flask import request as flask_req
+        from server.scrapers import olx, vinted, allegro
+
+        query = flask_req.args.get("q", "Nike Air Max")
+        max_price = flask_req.args.get("max_price", type=float)
+
+        results = {"query": query, "max_price": max_price, "sources": {}}
+        for name, module in (("olx", olx), ("vinted", vinted), ("allegro", allegro)):
+            try:
+                items = module.search(keywords=query, max_price=max_price, limit=5)
+                results["sources"][name] = {
+                    "count": len(items),
+                    "sample": [{"title": i.title, "price": i.price, "url": i.url, "id": i.id} for i in items[:3]],
+                }
+            except Exception as e:
+                results["sources"][name] = {"error": f"{type(e).__name__}: {e}"}
+        return jsonify(results), 200
+
+    @app.route("/api/debug/poll-now", methods=["POST"])
+    def debug_poll_now():
+        """Force the scheduler to run the polling loop right now (for both plans)."""
+        try:
+            from server.scheduler import poll_free_alerts, poll_premium_alerts
+            poll_free_alerts()
+            poll_premium_alerts()
+            return jsonify({"status": "ok", "message": "Polled"}), 200
+        except Exception as e:
+            return jsonify({"status": "error", "error": str(e), "trace": traceback.format_exc()}), 500
+
     @app.errorhandler(Exception)
     def json_error_handler(e):
         """Return JSON instead of HTML for any unhandled exception."""

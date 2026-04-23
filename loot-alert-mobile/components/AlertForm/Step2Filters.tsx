@@ -57,19 +57,19 @@ export function Step2Filters({
         </View>
       </View>
 
-      <Text style={styles.label}>Rozmiar (opcjonalnie)</Text>
+      <Text style={styles.label}>Dodatkowe słowo kluczowe (opcjonalnie)</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. 42, XL, M"
+        placeholder="np. 42, XL, 128GB, 205/55 R16, bez wad"
         placeholderTextColor={Colors.textFaint}
         value={size}
         onChangeText={onSizeChange}
       />
 
-      <Text style={styles.label}>Kolor (opcjonalnie)</Text>
+      <Text style={styles.label}>Musi zawierać (opcjonalnie)</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. czarny, biały"
+        placeholder="np. czarny, OEM, nowy, z gwarancją"
         placeholderTextColor={Colors.textFaint}
         value={color}
         onChangeText={onColorChange}

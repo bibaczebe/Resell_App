@@ -52,6 +52,12 @@ def _poll_alerts(plan_filter: str):
     from server.db import get_redis
     from server.push import send_push_notification, get_user_tokens, cleanup_dead_tokens
 
+    # Paid tiers share the faster cadence
+    if plan_filter == "paid":
+        plans = ("pro", "elite", "premium")
+    else:
+        plans = ("free",)
+
     try:
         redis_client = get_redis()
         conn = _get_conn()
@@ -62,8 +68,8 @@ def _poll_alerts(plan_filter: str):
                       u.plan
                FROM alerts a
                JOIN users u ON u.id = a.user_id
-               WHERE a.is_active = TRUE AND u.plan = %s""",
-            (plan_filter,),
+               WHERE a.is_active = TRUE AND u.plan = ANY(%s)""",
+            (list(plans),),
         )
         alerts = cur.fetchall()
     except Exception as e:
@@ -140,7 +146,7 @@ def poll_free_alerts():
 
 
 def poll_premium_alerts():
-    _poll_alerts("premium")
+    _poll_alerts("paid")
 
 
 def start_scheduler() -> BackgroundScheduler:

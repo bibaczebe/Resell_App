@@ -33,9 +33,14 @@ export default function RegisterScreen() {
     }
     setLoading(true);
     try {
-      await register(email.trim().toLowerCase(), password);
-      await registerForPushNotifications();
-      router.replace("/(tabs)");
+      const normalizedEmail = email.trim().toLowerCase();
+      const { requiresVerification } = await register(normalizedEmail, password);
+      registerForPushNotifications().catch(() => {});
+      if (requiresVerification) {
+        router.replace({ pathname: "/(auth)/verify", params: { email: normalizedEmail } });
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Błąd rejestracji");
     } finally {

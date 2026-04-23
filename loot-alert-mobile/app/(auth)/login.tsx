@@ -24,10 +24,14 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      await login(email.trim().toLowerCase(), password);
-      // Request push permission after successful login
+      const normalizedEmail = email.trim().toLowerCase();
+      const user = await login(normalizedEmail, password);
       registerForPushNotifications().catch(() => {});
-      router.replace("/(tabs)");
+      if (!user.is_verified) {
+        router.replace({ pathname: "/(auth)/verify", params: { email: normalizedEmail } });
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Błąd logowania");
     } finally {

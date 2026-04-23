@@ -1,11 +1,11 @@
 import bcrypt
 import jwt
 import datetime
-import smtplib
-from email.mime.text import MIMEText
-from flask import Blueprint, request, jsonify, current_app
+import random
+from flask import Blueprint, request, jsonify
 from server.db import get_db
-from server.config import SECRET_KEY, JWT_EXPIRE_HOURS, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+from server.config import SECRET_KEY, JWT_EXPIRE_HOURS
+from server.emails import send_verification_code
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -54,22 +54,21 @@ def require_auth(f):
     return decorated
 
 
-def _send_verification_email(email: str, token: str):
-    if not SMTP_USER:
-        return
-    try:
-        base_url = current_app.config.get("BASE_URL", "https://api.lootalert.app")
-        link = f"{base_url}/api/auth/verify?token={token}"
-        msg = MIMEText(f"Verify your LootAlert account:\n\n{link}")
-        msg["Subject"] = "Verify your LootAlert account"
-        msg["From"] = SMTP_USER
-        msg["To"] = email
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as s:
-            s.starttls()
-            s.login(SMTP_USER, SMTP_PASS)
-            s.send_message(msg)
-    except Exception:
-        pass  # email is best-effort
+def _generate_code() -> str:
+    return f"{random.randint(0, 999999):06d}"
+
+
+def _create_verification(db, user_id: int, email: str) -> None:
+    code = _generate_code()
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=15)
+    cur = db.cursor()
+    cur.execute(
+        """INSERT INTO email_verifications (user_id, code, expires_at)
+           VALUES (%s, %s, %s)""",
+        (user_id, code, expires_at),
+    )
+    db.commit()
+    send_verification_code(email, code)
 
 
 @auth_bp.route("/api/auth/register", methods=["POST"])
@@ -79,15 +78,15 @@ def register():
     password = data.get("password") or ""
 
     if not email or "@" not in email:
-        return jsonify({"error": "Invalid email"}), 400
+        return jsonify({"error": "Nieprawidłowy email"}), 400
     if len(password) < 8:
-        return jsonify({"error": "Password must be at least 8 characters"}), 400
+        return jsonify({"error": "Hasło musi mieć min. 8 znaków"}), 400
 
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM users WHERE email = %s", (email,))
     if cur.fetchone():
-        return jsonify({"error": "Email already registered"}), 409
+        return jsonify({"error": "Email już zarejestrowany"}), 409
 
     pw_hash = hash_password(password)
     cur.execute(
@@ -97,11 +96,14 @@ def register():
     user_id = cur.fetchone()["id"]
     db.commit()
 
-    verify_token = create_token(user_id)
-    _send_verification_email(email, verify_token)
+    _create_verification(db, user_id, email)
 
     token = create_token(user_id)
-    return jsonify({"token": token, "user_id": user_id}), 201
+    return jsonify({
+        "token": token,
+        "user_id": user_id,
+        "requires_verification": True,
+    }), 201
 
 
 @auth_bp.route("/api/auth/login", methods=["POST"])
@@ -112,28 +114,94 @@ def login():
 
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT id, password_hash, plan FROM users WHERE email = %s", (email,))
+    cur.execute(
+        "SELECT id, password_hash, plan, is_verified FROM users WHERE email = %s",
+        (email,),
+    )
     user = cur.fetchone()
 
     if not user or not check_password(password, user["password_hash"]):
-        return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Nieprawidłowy email lub hasło"}), 401
 
     token = create_token(user["id"])
-    return jsonify({"token": token, "user_id": user["id"], "plan": user["plan"]}), 200
+    return jsonify({
+        "token": token,
+        "user_id": user["id"],
+        "plan": user["plan"],
+        "is_verified": user["is_verified"],
+    }), 200
 
 
-@auth_bp.route("/api/auth/verify", methods=["GET"])
-def verify_email():
-    token = request.args.get("token", "")
-    payload = decode_token(token)
-    if not payload:
-        return jsonify({"error": "Invalid or expired token"}), 400
+@auth_bp.route("/api/auth/verify-code", methods=["POST"])
+@require_auth
+def verify_code():
+    data = request.get_json(silent=True) or {}
+    code = (data.get("code") or "").strip()
+
+    if not code or len(code) != 6 or not code.isdigit():
+        return jsonify({"error": "Podaj 6-cyfrowy kod"}), 400
 
     db = get_db()
     cur = db.cursor()
-    cur.execute("UPDATE users SET is_verified = TRUE WHERE id = %s", (payload["sub"],))
+    cur.execute(
+        """SELECT id, code, expires_at, attempts, consumed
+           FROM email_verifications
+           WHERE user_id = %s
+           ORDER BY created_at DESC
+           LIMIT 1""",
+        (request.user_id,),
+    )
+    row = cur.fetchone()
+
+    if not row:
+        return jsonify({"error": "Brak aktywnego kodu. Poproś o nowy."}), 400
+    if row["consumed"]:
+        return jsonify({"error": "Kod już użyty. Poproś o nowy."}), 400
+    if row["expires_at"] < datetime.datetime.utcnow():
+        return jsonify({"error": "Kod wygasł. Poproś o nowy."}), 400
+    if row["attempts"] >= 5:
+        return jsonify({"error": "Za dużo prób. Poproś o nowy kod."}), 429
+
+    cur.execute(
+        "UPDATE email_verifications SET attempts = attempts + 1 WHERE id = %s",
+        (row["id"],),
+    )
+
+    if row["code"] != code:
+        db.commit()
+        return jsonify({"error": "Nieprawidłowy kod"}), 400
+
+    cur.execute("UPDATE email_verifications SET consumed = TRUE WHERE id = %s", (row["id"],))
+    cur.execute("UPDATE users SET is_verified = TRUE WHERE id = %s", (request.user_id,))
     db.commit()
-    return jsonify({"message": "Email verified"}), 200
+
+    return jsonify({"message": "Email zweryfikowany", "is_verified": True}), 200
+
+
+@auth_bp.route("/api/auth/resend-code", methods=["POST"])
+@require_auth
+def resend_code():
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT email, is_verified FROM users WHERE id = %s", (request.user_id,))
+    user = cur.fetchone()
+    if not user:
+        return jsonify({"error": "Nie znaleziono użytkownika"}), 404
+    if user["is_verified"]:
+        return jsonify({"message": "Email już zweryfikowany"}), 200
+
+    # Rate limit: max 1 code per 60s
+    cur.execute(
+        """SELECT created_at FROM email_verifications
+           WHERE user_id = %s ORDER BY created_at DESC LIMIT 1""",
+        (request.user_id,),
+    )
+    last = cur.fetchone()
+    if last and (datetime.datetime.utcnow() - last["created_at"]).total_seconds() < 60:
+        return jsonify({"error": "Poczekaj 60 sekund przed wysłaniem nowego kodu"}), 429
+
+    _create_verification(db, request.user_id, user["email"])
+    return jsonify({"message": "Nowy kod wysłany"}), 200
 
 
 @auth_bp.route("/api/auth/me", methods=["GET"])
@@ -147,5 +215,5 @@ def me():
     )
     user = cur.fetchone()
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        return jsonify({"error": "Użytkownik nie znaleziony"}), 404
     return jsonify(dict(user)), 200

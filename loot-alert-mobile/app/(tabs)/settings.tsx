@@ -11,7 +11,16 @@ import { GlassCard } from "../../components/ui/GlassCard";
 import { PricingSheet } from "../../components/PricingSheet";
 import { fetchMe, logout } from "../../lib/auth";
 import { registerForPushNotifications } from "../../lib/notifications";
+import { api } from "../../lib/api";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 import type { User } from "../../lib/auth";
+
+const PLAN_LABEL: Record<string, string> = {
+  free: "Free",
+  pro: "Pro",
+  elite: "Elite",
+  premium: "Pro",
+};
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
@@ -19,10 +28,30 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [showPricing, setShowPricing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchMe().then(setUser).finally(() => setLoading(false));
   }, []);
+
+  async function handleSyncSubscription() {
+    setSyncing(true);
+    try {
+      const res = await api.post<{ plan: string }>("/api/stripe/sync", {});
+      const fresh = await fetchMe();
+      setUser(fresh);
+      Alert.alert(
+        "Zsynchronizowano",
+        res.plan === "free"
+          ? "Brak aktywnej subskrypcji"
+          : `Plan zaktualizowany: ${PLAN_LABEL[res.plan] ?? res.plan}`
+      );
+    } catch (e: unknown) {
+      Alert.alert("Błąd", e instanceof Error ? e.message : "Nie udało się zsynchronizować");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
   async function handleEnablePush() {
     const token = await registerForPushNotifications();
@@ -61,6 +90,7 @@ export default function SettingsScreen() {
       style={styles.container}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 20 }]}
     >
+      <AuroraBg />
       <Text style={styles.pageTitle}>Ustawienia</Text>
 
       <MotiView
@@ -72,20 +102,44 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Konto</Text>
           <View style={styles.row}>
             <Feather name="mail" size={16} color={Colors.textMuted} />
-            <Text style={styles.rowText}>{user?.email}</Text>
+            <Text style={styles.rowText} numberOfLines={1}>{user?.email}</Text>
+            {user?.is_verified && (
+              <View style={styles.verifiedBadge}>
+                <Feather name="check" size={10} color={Colors.success} />
+                <Text style={styles.verifiedText}>Zweryfikowany</Text>
+              </View>
+            )}
           </View>
           <View style={styles.row}>
-            <Feather name="star" size={16} color={user?.plan === "premium" ? Colors.violetLight : Colors.textMuted} />
-            <Text style={[styles.rowText, user?.plan === "premium" && { color: Colors.violetLight }]}>
-              Plan: {user?.plan === "premium" ? "Premium" : "Free"}
+            <Feather
+              name="star"
+              size={16}
+              color={user && user.plan !== "free" ? Colors.violetLight : Colors.textMuted}
+            />
+            <Text style={[styles.rowText, user && user.plan !== "free" && { color: Colors.violetLight }]}>
+              Plan: {PLAN_LABEL[user?.plan ?? "free"] ?? "Free"}
             </Text>
           </View>
-          {user?.plan === "free" && (
+          {user?.plan === "free" ? (
             <TouchableOpacity style={styles.upgradeBtn} onPress={() => setShowPricing(true)}>
               <Feather name="zap" size={14} color="#fff" />
               <Text style={styles.upgradeBtnText}>Przejdź na Premium</Text>
             </TouchableOpacity>
-          )}
+          ) : null}
+          <TouchableOpacity
+            style={styles.syncBtn}
+            onPress={handleSyncSubscription}
+            disabled={syncing}
+          >
+            {syncing ? (
+              <ActivityIndicator color={Colors.textMuted} size="small" />
+            ) : (
+              <>
+                <Feather name="refresh-cw" size={14} color={Colors.textMuted} />
+                <Text style={styles.syncText}>Synchronizuj subskrypcję ze Stripe</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </GlassCard>
 
         <GlassCard style={styles.section}>
@@ -137,6 +191,28 @@ const styles = StyleSheet.create({
   rowText: { color: Colors.text, fontSize: 15, flex: 1 },
   rowSub: { color: Colors.textMuted, fontSize: 12, marginTop: 1 },
   switchRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
+  verifiedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  verifiedText: { color: Colors.success, fontSize: 10, fontWeight: "700" },
+  syncBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    marginTop: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  syncText: { color: Colors.textMuted, fontSize: 13, fontWeight: "500" },
   upgradeBtn: {
     flexDirection: "row",
     alignItems: "center",

@@ -1,4 +1,4 @@
-import { View, Text, TextInput, StyleSheet } from "react-native";
+import { Text, TextInput, StyleSheet } from "react-native";
 import { MotiView } from "moti";
 import { Colors } from "../../constants/colors";
 
@@ -20,7 +20,7 @@ export function Step1Keywords({ name, keywords, onNameChange, onKeywordsChange }
       <Text style={styles.label}>Nazwa alertu</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. Nike Air Max 90"
+        placeholder="np. iPhone 13 Pro, felgi BBS 18"
         placeholderTextColor={Colors.textFaint}
         value={name}
         onChangeText={onNameChange}
@@ -28,14 +28,17 @@ export function Step1Keywords({ name, keywords, onNameChange, onKeywordsChange }
       <Text style={styles.label}>Słowa kluczowe</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder={"np. Nike Air Max 90 czarne\nMożesz podać kilka słów kluczowych"}
+        placeholder={"np. iPhone 13 Pro 128GB\nLub: Huawei Mate, Lego Star Wars, Opony zimowe 205"}
         placeholderTextColor={Colors.textFaint}
         value={keywords}
         onChangeText={onKeywordsChange}
         multiline
         numberOfLines={3}
       />
-      <Text style={styles.hint}>System będzie szukał ogłoszeń zawierających te słowa.</Text>
+      <Text style={styles.hint}>
+        Szukamy wszystkiego: elektronika, motoryzacja, moda, kolekcje, AGD/RTV, meble, hobby.
+        System znajdzie oferty zawierające te słowa w tytule.
+      </Text>
     </MotiView>
   );
 }

@@ -89,6 +89,17 @@ def init_db(app):
                 source        VARCHAR(20),
                 sent_at       TIMESTAMP DEFAULT NOW()
             );
+
+            CREATE TABLE IF NOT EXISTS email_verifications (
+                id          SERIAL PRIMARY KEY,
+                user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                code        VARCHAR(6) NOT NULL,
+                expires_at  TIMESTAMP NOT NULL,
+                attempts    INTEGER DEFAULT 0,
+                consumed    BOOLEAN DEFAULT FALSE,
+                created_at  TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_verif_user ON email_verifications(user_id);
         """)
         conn.commit()
         cur.close()
