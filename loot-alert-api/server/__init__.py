@@ -1,8 +1,9 @@
 import logging
-from flask import Flask
+import traceback
+from flask import Flask, jsonify
 from flask_cors import CORS
 
-from server.config import SECRET_KEY
+from server.config import SECRET_KEY, DATABASE_URL, REDIS_URL
 from server.db import init_db, close_db
 
 logging.basicConfig(level=logging.INFO)
@@ -31,11 +32,58 @@ def create_app() -> Flask:
     def health():
         return {"status": "ok"}, 200
 
+    @app.route("/api/debug/status")
+    def debug_status():
+        """Returns JSON with env + DB connectivity check. Safe to expose."""
+        status = {
+            "has_database_url": bool(DATABASE_URL),
+            "database_url_prefix": (DATABASE_URL[:25] + "...") if DATABASE_URL else None,
+            "has_redis_url": bool(REDIS_URL),
+            "redis_url_prefix": (REDIS_URL[:25] + "...") if REDIS_URL else None,
+            "db_connect": None,
+            "db_tables": None,
+        }
+        try:
+            import psycopg2
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
+            tables = [r[0] for r in cur.fetchall()]
+            status["db_connect"] = "ok"
+            status["db_tables"] = tables
+            cur.close()
+            conn.close()
+        except Exception as e:
+            status["db_connect"] = f"error: {type(e).__name__}: {e}"
+        return jsonify(status), 200
+
+    @app.route("/api/debug/init-db", methods=["POST", "GET"])
+    def debug_init_db():
+        """Manually create tables if they don't exist."""
+        try:
+            init_db(app)
+            return jsonify({"status": "ok", "message": "Tables created/verified"}), 200
+        except Exception as e:
+            return jsonify({"status": "error", "error": str(e), "trace": traceback.format_exc()}), 500
+
+    @app.errorhandler(Exception)
+    def json_error_handler(e):
+        """Return JSON instead of HTML for any unhandled exception."""
+        logging.exception("Unhandled exception in request")
+        from werkzeug.exceptions import HTTPException
+        if isinstance(e, HTTPException):
+            return jsonify({"error": e.description, "code": e.code}), e.code
+        return jsonify({
+            "error": str(e),
+            "type": type(e).__name__,
+        }), 500
+
     with app.app_context():
         try:
             init_db(app)
+            logging.info("DB tables initialized successfully")
         except Exception as e:
-            logging.warning("DB init skipped (no DATABASE_URL?): %s", e)
+            logging.warning("DB init skipped (will retry on first request): %s", e)
 
     try:
         from server.scheduler import start_scheduler
