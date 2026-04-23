@@ -37,7 +37,10 @@ def create_app() -> Flask:
         except Exception as e:
             logging.warning("DB init skipped (no DATABASE_URL?): %s", e)
 
-    from server.scheduler import start_scheduler
-    start_scheduler()
+    try:
+        from server.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as e:
+        logging.warning("Scheduler start skipped: %s", e)
 
     return app
