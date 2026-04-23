@@ -1,7 +1,10 @@
 import requests
 import time
-from server.scrapers import Listing, random_headers
+import logging
+from server.scrapers import Listing
 from server.config import ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET, ALLEGRO_TOKEN_URL, ALLEGRO_API_BASE
+
+logger = logging.getLogger(__name__)
 
 _token_cache = {"token": None, "expires_at": 0}
 
@@ -25,7 +28,8 @@ def _get_token() -> str | None:
         _token_cache["token"] = data["access_token"]
         _token_cache["expires_at"] = time.time() + data.get("expires_in", 3600)
         return _token_cache["token"]
-    except Exception:
+    except Exception as e:
+        logger.warning("Allegro token fetch failed: %s", e)
         return None
 
 
@@ -37,23 +41,19 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
 
     params = {
         "phrase": keywords,
-        "sort": "-startTime",
-        "limit": limit,
+        "limit": min(limit, 60),
         "offset": 0,
+        "sort": "-startTime",
     }
     if max_price:
         params["price.to"] = max_price
-    if min_price:
+    if min_price and min_price > 0:
         params["price.from"] = min_price
-    if condition == "new":
-        params["condition"] = "NEW"
-    elif condition == "used":
-        params["condition"] = "USED"
 
     headers = {
-        **random_headers(),
         "Authorization": f"Bearer {token}",
         "Accept": "application/vnd.allegro.public.v1+json",
+        "User-Agent": "LootAlert/1.0",
     }
 
     try:
@@ -61,25 +61,31 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             f"{ALLEGRO_API_BASE}/offers/listing",
             params=params,
             headers=headers,
-            timeout=10,
+            timeout=12,
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            logger.warning("Allegro search %s: %s", resp.status_code, resp.text[:200])
+            return []
         data = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("Allegro search error: %s", e)
         return []
 
     listings = []
-    items = data.get("items", {})
-    for item in items.get("regular", []) + items.get("promoted", []):
-        price = None
-        try:
-            price = float(item.get("sellingMode", {}).get("price", {}).get("amount", 0))
-        except (TypeError, ValueError):
-            pass
+    items = data.get("items", {}) or {}
+    all_items = list(items.get("promoted", [])) + list(items.get("regular", []))
 
+    for item in all_items:
+        try:
+            selling = item.get("sellingMode", {}) or {}
+            price_obj = selling.get("price", {}) or {}
+            price = float(price_obj.get("amount", 0)) or None
+        except (TypeError, ValueError):
+            price = None
+
+        images = item.get("images", []) or []
         image_url = None
-        images = item.get("images", [])
-        if images:
+        if images and isinstance(images[0], dict):
             image_url = images[0].get("url")
 
         offer_id = item.get("id", "")

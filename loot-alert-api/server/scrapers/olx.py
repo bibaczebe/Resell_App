@@ -13,6 +13,31 @@ def _scraper_url(target_url: str) -> str:
     return target_url
 
 
+def _extract_price(item: dict) -> float | None:
+    for param in item.get("params", []):
+        if param.get("key") == "price":
+            value_obj = param.get("value", {})
+            # Some listings are 'negotiable' or 'arranged' with value=0/1; skip those
+            if value_obj.get("arranged") and (value_obj.get("value") or 0) <= 1:
+                return None
+            try:
+                return float(value_obj.get("value") or 0) or None
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _extract_first_photo(item: dict) -> str | None:
+    photos = item.get("photos") or []
+    if not photos:
+        return None
+    first = photos[0]
+    link = first.get("link", "") if isinstance(first, dict) else ""
+    if link:
+        return link.replace("{width}", "400").replace("{height}", "400")
+    return None
+
+
 def search(keywords: str, max_price: float | None = None, min_price: float = 0,
            condition: str = "any", limit: int = 50) -> list[Listing]:
     results = _search_api(keywords, max_price, min_price, condition, limit)
@@ -25,13 +50,12 @@ def _search_api(keywords: str, max_price: float | None, min_price: float,
                 condition: str, limit: int) -> list[Listing]:
     params = {
         "query": keywords,
-        "sort_by": "created_at:desc",
         "limit": limit,
         "offset": 0,
     }
     if max_price:
         params["filter_float_price:to"] = max_price
-    if min_price:
+    if min_price and min_price > 0:
         params["filter_float_price:from"] = min_price
     if condition == "new":
         params["filter_enum_state"] = "new"
@@ -40,10 +64,10 @@ def _search_api(keywords: str, max_price: float | None, min_price: float,
 
     try:
         resp = requests.get(
-            _scraper_url(f"{OLX_API_BASE}/offers/"),
+            f"{OLX_API_BASE}/offers/",
             params=params,
             headers=random_headers(),
-            timeout=10,
+            timeout=12,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -52,23 +76,18 @@ def _search_api(keywords: str, max_price: float | None, min_price: float,
 
     listings = []
     for item in data.get("data", []):
-        price = None
-        price_info = item.get("price", {})
-        if price_info and price_info.get("value"):
-            try:
-                price = float(price_info["value"]["value"])
-            except (KeyError, TypeError, ValueError):
-                pass
-
-        photos = item.get("photos", [])
-        image_url = photos[0].get("link", "").replace("{width}", "400").replace("{height}", "400") if photos else None
+        price = _extract_price(item)
+        if max_price and price and price > max_price:
+            continue
+        if min_price and price and price < min_price:
+            continue
 
         listings.append(Listing(
             id=str(item.get("id", "")),
             title=item.get("title", ""),
             price=price,
             url=item.get("url", ""),
-            image_url=image_url,
+            image_url=_extract_first_photo(item),
             source="olx",
         ))
     return listings
