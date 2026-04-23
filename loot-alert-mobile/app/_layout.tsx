@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack, router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { View, Text, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import * as Notifications from "expo-notifications";
 import { isLoggedIn } from "../lib/auth";
@@ -38,14 +39,19 @@ export default function RootLayout() {
   // Auth check + push token registration on app start
   useEffect(() => {
     (async () => {
-      const loggedIn = await isLoggedIn();
-      if (!loggedIn) {
+      try {
+        const loggedIn = await isLoggedIn();
+        if (!loggedIn) {
+          router.replace("/(auth)/login");
+        } else {
+          registerForPushNotifications().catch(() => {});
+        }
+      } catch (e) {
+        console.warn("Startup error:", e);
         router.replace("/(auth)/login");
-      } else {
-        // Register push token silently after login
-        registerForPushNotifications().catch(() => {});
+      } finally {
+        setReady(true);
       }
-      setReady(true);
     })();
   }, []);
 
@@ -98,35 +104,37 @@ export default function RootLayout() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <StatusBar style="light" backgroundColor={Colors.background} />
-      <Stack screenOptions={{ headerShown: false }} />
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <StatusBar style="light" backgroundColor={Colors.background} />
+        <Stack screenOptions={{ headerShown: false }} />
 
-      {/* In-app notification banner */}
-      {banner && (
-        <Animated.View
-          style={[styles.banner, { transform: [{ translateY: bannerAnim }] }]}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              dismissBanner();
-              if (banner.alertId) router.push(`/alert/${banner.alertId}`);
-            }}
-            style={styles.bannerInner}
-            activeOpacity={0.9}
+        {/* In-app notification banner */}
+        {banner && (
+          <Animated.View
+            style={[styles.banner, { transform: [{ translateY: bannerAnim }] }]}
           >
-            <View style={styles.bannerDot} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.bannerTitle} numberOfLines={1}>{banner.title}</Text>
-              <Text style={styles.bannerBody} numberOfLines={1}>{banner.body}</Text>
-            </View>
-            <TouchableOpacity onPress={dismissBanner} style={styles.bannerClose}>
-              <Text style={{ color: Colors.textMuted, fontSize: 16 }}>×</Text>
+            <TouchableOpacity
+              onPress={() => {
+                dismissBanner();
+                if (banner.alertId) router.push(`/alert/${banner.alertId}`);
+              }}
+              style={styles.bannerInner}
+              activeOpacity={0.9}
+            >
+              <View style={styles.bannerDot} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.bannerTitle} numberOfLines={1}>{banner.title}</Text>
+                <Text style={styles.bannerBody} numberOfLines={1}>{banner.body}</Text>
+              </View>
+              <TouchableOpacity onPress={dismissBanner} style={styles.bannerClose}>
+                <Text style={{ color: Colors.textMuted, fontSize: 16 }}>×</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
-    </GestureHandlerRootView>
+          </Animated.View>
+        )}
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
