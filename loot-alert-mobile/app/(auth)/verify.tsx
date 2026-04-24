@@ -67,7 +67,7 @@ export default function VerifyScreen() {
       await verifyCode(code);
       router.replace("/(tabs)");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Błąd weryfikacji");
+      setError(e instanceof Error ? e.message : "Verification failed");
       setDigits(["", "", "", "", "", ""]);
       inputs.current[0]?.focus();
     } finally {
@@ -80,10 +80,10 @@ export default function VerifyScreen() {
     setInfo("");
     try {
       await resendVerificationCode();
-      setInfo("Nowy kod wysłany! Sprawdź skrzynkę.");
+      setInfo("New code sent! Check your inbox.");
       setResendCooldown(60);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Nie udało się wysłać kodu");
+      setError(e instanceof Error ? e.message : "Failed to resend code");
     }
   }
 
@@ -103,10 +103,10 @@ export default function VerifyScreen() {
           <Feather name="mail" size={28} color={Colors.violetLight} />
         </View>
 
-        <Text style={styles.title}>Sprawdź email</Text>
+        <Text style={styles.title}>Check your email</Text>
         <Text style={styles.subtitle}>
-          Wysłaliśmy 6-cyfrowy kod na{"\n"}
-          <Text style={{ color: Colors.text, fontWeight: "600" }}>{email ?? "Twój email"}</Text>
+          We sent a 6-digit code to{"\n"}
+          <Text style={{ color: Colors.text, fontWeight: "600" }}>{email ?? "your email"}</Text>
         </Text>
 
         <View style={styles.codeRow}>
@@ -143,14 +143,14 @@ export default function VerifyScreen() {
         >
           <Text style={[styles.resendText, resendCooldown > 0 && { color: Colors.textFaint }]}>
             {resendCooldown > 0
-              ? `Wyślij ponownie (${resendCooldown}s)`
-              : "Nie otrzymałem kodu – wyślij ponownie"}
+              ? `Resend code (${resendCooldown}s)`
+              : "Didn't get the code? Resend"}
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.replace("/(auth)/login")} style={styles.backBtn}>
           <Feather name="arrow-left" size={14} color={Colors.textMuted} />
-          <Text style={styles.backText}>Powrót do logowania</Text>
+          <Text style={styles.backText}>Back to sign in</Text>
         </TouchableOpacity>
       </MotiView>
     </KeyboardAvoidingView>

@@ -23,12 +23,14 @@ def create_app() -> Flask:
     from server.push import push_bp
     from server.stripe_routes import stripe_bp
     from server.legal import legal_bp
+    from server.admin import admin_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(alerts_bp)
     app.register_blueprint(push_bp)
     app.register_blueprint(stripe_bp)
     app.register_blueprint(legal_bp)
+    app.register_blueprint(admin_bp)
 
     @app.route("/health")
     def health():

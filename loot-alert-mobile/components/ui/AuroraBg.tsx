@@ -1,40 +1,50 @@
 import { View, StyleSheet, Dimensions } from "react-native";
+import { useState, useCallback, useEffect } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withRepeat,
   withTiming,
   cancelAnimation,
   Easing,
+  runOnJS,
+  withSpring,
+  withDecay,
 } from "react-native-reanimated";
-import { useEffect } from "react";
 import { Colors } from "../../constants/colors";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
-
 const BLOB_SIZE = 280;
 
-interface BlobProps {
+interface BlobInstance {
+  id: number;
   color: string;
-  homeX: number;
-  homeY: number;
+  initialX: number;
+  initialY: number;
   driftAmp: number;
   driftDuration: number;
   opacity: number;
 }
 
-function InteractiveBlob({ color, homeX, homeY, driftAmp, driftDuration, opacity }: BlobProps) {
-  // Position offset from home position
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const drifting = useSharedValue(1); // 0 when dragging, 1 when free
+interface BlobProps extends BlobInstance {
+  onDoubleTap: (instance: BlobInstance) => void;
+}
 
-  // Gentle ambient drift (breathing/floating feel)
+function Blob({ id, color, initialX, initialY, driftAmp, driftDuration, opacity, onDoubleTap }: BlobProps) {
+  const x = useSharedValue(initialX);
+  const y = useSharedValue(initialY);
   const driftX = useSharedValue(0);
   const driftY = useSharedValue(0);
+  const drifting = useSharedValue(1);
+  const scale = useSharedValue(0.2);
 
+  // mount "pop" animation
+  useEffect(() => {
+    scale.value = withSpring(1, { damping: 8, stiffness: 80 });
+  }, []);
+
+  // ambient drift (breathing)
   useEffect(() => {
     driftX.value = withRepeat(
       withTiming(driftAmp, { duration: driftDuration, easing: Easing.inOut(Easing.sin) }),
@@ -50,86 +60,87 @@ function InteractiveBlob({ color, homeX, homeY, driftAmp, driftDuration, opacity
       cancelAnimation(driftX);
       cancelAnimation(driftY);
     };
-  }, [driftAmp, driftDuration]);
+  }, []);
 
-  // Track last velocity for fling effect
   const pan = Gesture.Pan()
     .onStart(() => {
       drifting.value = 0;
+      cancelAnimation(x);
+      cancelAnimation(y);
     })
-    .onUpdate((e) => {
-      translateX.value = e.translationX;
-      translateY.value = e.translationY;
+    .onChange((e) => {
+      x.value = x.value + e.changeX;
+      y.value = y.value + e.changeY;
     })
     .onEnd((e) => {
-      // Jelly spring bounce back home, carrying velocity
-      translateX.value = withSpring(0, {
-        damping: 6,
-        stiffness: 40,
-        mass: 1.2,
+      // fling with momentum decay (NO snap-back home)
+      x.value = withDecay({
         velocity: e.velocityX,
+        deceleration: 0.995,
+        clamp: [-BLOB_SIZE * 1.5, SCREEN_W + BLOB_SIZE * 0.5],
       });
-      translateY.value = withSpring(0, {
-        damping: 6,
-        stiffness: 40,
-        mass: 1.2,
+      y.value = withDecay({
         velocity: e.velocityY,
+        deceleration: 0.995,
+        clamp: [-BLOB_SIZE * 1.5, SCREEN_H + BLOB_SIZE * 0.5],
       });
       drifting.value = 1;
     });
 
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onEnd((e) => {
+      runOnJS(onDoubleTap)({
+        id: Date.now() + Math.random(),
+        color,
+        initialX: x.value + 40,
+        initialY: y.value + 40,
+        driftAmp,
+        driftDuration,
+        opacity: opacity * 0.75,
+      });
+      scale.value = withSpring(1.2, { damping: 4, stiffness: 200 }, () => {
+        scale.value = withSpring(1, { damping: 8, stiffness: 100 });
+      });
+    });
+
+  const gesture = Gesture.Race(doubleTap, pan);
+
   const animStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: translateX.value + driftX.value * drifting.value },
-      { translateY: translateY.value + driftY.value * drifting.value },
+      { translateX: x.value + driftX.value * drifting.value },
+      { translateY: y.value + driftY.value * drifting.value },
+      { scale: scale.value },
     ],
   }));
 
   return (
-    <GestureDetector gesture={pan}>
-      <Animated.View
-        style={[
-          styles.blob,
-          {
-            backgroundColor: color,
-            opacity,
-            top: homeY,
-            left: homeX,
-          },
-          animStyle,
-        ]}
-      />
+    <GestureDetector gesture={gesture}>
+      <Animated.View style={[styles.blob, { backgroundColor: color, opacity }, animStyle]} />
     </GestureDetector>
   );
 }
 
 export function AuroraBg() {
+  const [blobs, setBlobs] = useState<BlobInstance[]>([
+    { id: 1, color: Colors.violet, initialX: -60, initialY: -40, driftAmp: 30, driftDuration: 4500, opacity: 0.28 },
+    { id: 2, color: Colors.fuchsia, initialX: SCREEN_W - 220, initialY: SCREEN_H * 0.25, driftAmp: 35, driftDuration: 5800, opacity: 0.22 },
+    { id: 3, color: Colors.indigo, initialX: -40, initialY: SCREEN_H * 0.6, driftAmp: 25, driftDuration: 5200, opacity: 0.2 },
+  ]);
+
+  const handleDoubleTap = useCallback((clone: BlobInstance) => {
+    setBlobs((prev) => {
+      // cap at 8 blobs to avoid performance issues
+      if (prev.length >= 8) return prev;
+      return [...prev, clone];
+    });
+  }, []);
+
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-      <InteractiveBlob
-        color={Colors.violet}
-        homeX={-60}
-        homeY={-40}
-        driftAmp={30}
-        driftDuration={4500}
-        opacity={0.28}
-      />
-      <InteractiveBlob
-        color={Colors.fuchsia}
-        homeX={SCREEN_W - 220}
-        homeY={SCREEN_H * 0.25}
-        driftAmp={35}
-        driftDuration={5800}
-        opacity={0.22}
-      />
-      <InteractiveBlob
-        color={Colors.indigo}
-        homeX={-40}
-        homeY={SCREEN_H * 0.6}
-        driftAmp={25}
-        driftDuration={5200}
-        opacity={0.2}
-      />
+      {blobs.map((b) => (
+        <Blob key={b.id} {...b} onDoubleTap={handleDoubleTap} />
+      ))}
     </View>
   );
 }
@@ -140,5 +151,7 @@ const styles = StyleSheet.create({
     width: BLOB_SIZE,
     height: BLOB_SIZE,
     borderRadius: BLOB_SIZE / 2,
+    top: 0,
+    left: 0,
   },
 });

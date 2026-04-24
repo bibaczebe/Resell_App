@@ -52,6 +52,21 @@ def plans():
 @stripe_bp.route("/api/stripe/checkout", methods=["POST"])
 @require_auth
 def create_checkout():
+    """Create a Checkout Session tied to the logged-in user.
+    Body: { plan: 'pro' | 'elite' }
+    After payment, Stripe calls webhook AND user returns via deep link -> backend sync.
+    """
+    data = request.get_json(silent=True) or {}
+    plan = (data.get("plan") or "pro").lower()
+
+    if plan == "elite":
+        price_id = STRIPE_PRICE_ELITE
+    else:
+        price_id = STRIPE_PRICE_PRO or STRIPE_PRICE_PREMIUM
+
+    if not price_id:
+        return jsonify({"error": "Price not configured for selected plan"}), 500
+
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT email, stripe_customer_id FROM users WHERE id = %s", (request.user_id,))
@@ -59,24 +74,37 @@ def create_checkout():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    customer_id = user["stripe_customer_id"]
-    if not customer_id:
-        customer = stripe.Customer.create(email=user["email"], metadata={"user_id": request.user_id})
-        customer_id = customer.id
-        cur.execute("UPDATE users SET stripe_customer_id = %s WHERE id = %s", (customer_id, request.user_id))
-        db.commit()
+    try:
+        customer_id = user["stripe_customer_id"]
+        if not customer_id:
+            customer = stripe.Customer.create(
+                email=user["email"],
+                metadata={"user_id": str(request.user_id)},
+            )
+            customer_id = customer.id
+            cur.execute("UPDATE users SET stripe_customer_id = %s WHERE id = %s", (customer_id, request.user_id))
+            db.commit()
 
-    base_url = request.json.get("base_url", "https://lootalert.app")
-    session = stripe.checkout.Session.create(
-        customer=customer_id,
-        payment_method_types=["card"],
-        line_items=[{"price": STRIPE_PRICE_PREMIUM, "quantity": 1}],
-        mode="subscription",
-        success_url=f"{base_url}/settings?upgraded=1",
-        cancel_url=f"{base_url}/pricing",
-        metadata={"user_id": str(request.user_id)},
-    )
-    return jsonify({"url": session.url}), 200
+        # Deep link back to the app so the mobile client can trigger /sync immediately
+        app_scheme = data.get("return_scheme") or "lootalert://"
+
+        session = stripe.checkout.Session.create(
+            customer=customer_id,
+            client_reference_id=str(request.user_id),
+            payment_method_types=["card", "blik", "p24"],
+            line_items=[{"price": price_id, "quantity": 1}],
+            mode="subscription",
+            success_url=f"{app_scheme}paid?plan={plan}",
+            cancel_url=f"{app_scheme}pricing",
+            metadata={"user_id": str(request.user_id), "plan": plan},
+            subscription_data={
+                "metadata": {"user_id": str(request.user_id), "plan": plan},
+            },
+            locale="pl",
+        )
+        return jsonify({"url": session.url}), 200
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
 @stripe_bp.route("/api/stripe/webhook", methods=["POST"])

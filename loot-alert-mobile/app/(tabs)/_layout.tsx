@@ -22,21 +22,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Alerty",
+          title: "Alerts",
           tabBarIcon: ({ color, size }) => <Feather name="bell" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="new"
         options={{
-          title: "Nowy alert",
+          title: "New alert",
           tabBarIcon: ({ color, size }) => <Feather name="plus-circle" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          title: "Ustawienia",
+          title: "Settings",
           tabBarIcon: ({ color, size }) => <Feather name="settings" size={size} color={color} />,
         }}
       />

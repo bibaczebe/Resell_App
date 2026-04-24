@@ -9,9 +9,9 @@ interface Props {
 }
 
 const SOURCES = [
-  { id: "olx", label: "OLX", desc: "Największy portal ogłoszeniowy w Polsce" },
-  { id: "vinted", label: "Vinted", desc: "Platforma odzieżowa second-hand" },
-  { id: "allegro", label: "Allegro", desc: "Największy marketplace w Polsce" },
+  { id: "olx", label: "OLX", desc: "Largest classifieds site in Poland" },
+  { id: "vinted", label: "Vinted", desc: "Fashion & second-hand marketplace" },
+  { id: "allegro", label: "Allegro", desc: "Biggest marketplace in Poland" },
 ];
 
 export function Step3Sources({ sources, onToggleSource }: Props) {
@@ -22,7 +22,7 @@ export function Step3Sources({ sources, onToggleSource }: Props) {
       exit={{ opacity: 0, translateX: -40 }}
       transition={{ type: "timing", duration: 300 }}
     >
-      <Text style={styles.info}>Wybierz portale, które mają być monitorowane. Możesz wybrać kilka.</Text>
+      <Text style={styles.info}>Choose which portals to monitor. You can pick more than one.</Text>
 
       {SOURCES.map((source, i) => {
         const active = sources.includes(source.id);

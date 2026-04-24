@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   View, Text, TouchableOpacity, StyleSheet, Switch, Alert, ScrollView, ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
@@ -28,46 +28,57 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [showPricing, setShowPricing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const versionTapCount = useRef(0);
+  const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    fetchMe().then(setUser).finally(() => setLoading(false));
-  }, []);
-
-  async function handleSyncSubscription() {
-    setSyncing(true);
+  const loadUser = useCallback(async () => {
     try {
-      const res = await api.post<{ plan: string }>("/api/stripe/sync", {});
+      // First fetch current user
       const fresh = await fetchMe();
       setUser(fresh);
-      Alert.alert(
-        "Zsynchronizowano",
-        res.plan === "free"
-          ? "Brak aktywnej subskrypcji"
-          : `Plan zaktualizowany: ${PLAN_LABEL[res.plan] ?? res.plan}`
-      );
-    } catch (e: unknown) {
-      Alert.alert("Błąd", e instanceof Error ? e.message : "Nie udało się zsynchronizować");
+
+      // Silently attempt to sync Stripe state if the user is expected to be paid
+      // or simply to pick up subscription changes
+      try {
+        const res = await api.post<{ plan: string }>("/api/stripe/sync", {});
+        if (res.plan && res.plan !== fresh.plan) {
+          const updated = await fetchMe();
+          setUser(updated);
+        }
+      } catch {
+        // silent
+      }
+    } catch {
+      // silent
     } finally {
-      setSyncing(false);
+      setLoading(false);
     }
-  }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUser();
+    }, [loadUser])
+  );
 
   async function handleEnablePush() {
     const token = await registerForPushNotifications();
     if (token) {
       setPushEnabled(true);
-      Alert.alert("Gotowe", "Powiadomienia push włączone!");
+      Alert.alert("Done", "Push notifications enabled.");
     } else {
-      Alert.alert("Brak uprawnień", "Przejdź do ustawień systemowych i włącz powiadomienia dla LootAlert.");
+      Alert.alert(
+        "Permission required",
+        "Open system Settings → Notifications and enable for LootAlert."
+      );
     }
   }
 
   async function handleLogout() {
-    Alert.alert("Wyloguj się", "Na pewno chcesz się wylogować?", [
-      { text: "Anuluj", style: "cancel" },
+    Alert.alert("Log out", "Are you sure you want to log out?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "Wyloguj",
+        text: "Log out",
         style: "destructive",
         onPress: async () => {
           await logout();
@@ -75,6 +86,18 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  function handleVersionTap() {
+    versionTapCount.current += 1;
+    if (versionTapTimer.current) clearTimeout(versionTapTimer.current);
+    versionTapTimer.current = setTimeout(() => {
+      versionTapCount.current = 0;
+    }, 1500);
+    if (versionTapCount.current >= 7) {
+      versionTapCount.current = 0;
+      router.push("/admin/login");
+    }
   }
 
   if (loading) {
@@ -91,7 +114,7 @@ export default function SettingsScreen() {
       contentContainerStyle={[styles.content, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 20 }]}
     >
       <AuroraBg />
-      <Text style={styles.pageTitle}>Ustawienia</Text>
+      <Text style={styles.pageTitle}>Settings</Text>
 
       <MotiView
         from={{ opacity: 0, translateY: 16 }}
@@ -99,14 +122,14 @@ export default function SettingsScreen() {
         transition={{ type: "timing", duration: 400 }}
       >
         <GlassCard style={styles.section}>
-          <Text style={styles.sectionTitle}>Konto</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.row}>
             <Feather name="mail" size={16} color={Colors.textMuted} />
             <Text style={styles.rowText} numberOfLines={1}>{user?.email}</Text>
             {user?.is_verified ? (
               <View style={styles.verifiedBadge}>
                 <Feather name="check" size={10} color={Colors.success} />
-                <Text style={styles.verifiedText}>Zweryfikowany</Text>
+                <Text style={styles.verifiedText}>Verified</Text>
               </View>
             ) : user ? (
               <TouchableOpacity
@@ -114,7 +137,7 @@ export default function SettingsScreen() {
                 style={styles.verifyBadge}
               >
                 <Feather name="alert-circle" size={10} color={Colors.warning} />
-                <Text style={styles.verifyText}>Zweryfikuj</Text>
+                <Text style={styles.verifyText}>Verify</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -131,31 +154,21 @@ export default function SettingsScreen() {
           {user?.plan === "free" ? (
             <TouchableOpacity style={styles.upgradeBtn} onPress={() => setShowPricing(true)}>
               <Feather name="zap" size={14} color="#fff" />
-              <Text style={styles.upgradeBtnText}>Przejdź na Premium</Text>
+              <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
             </TouchableOpacity>
-          ) : null}
-          <TouchableOpacity
-            style={styles.syncBtn}
-            onPress={handleSyncSubscription}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <ActivityIndicator color={Colors.textMuted} size="small" />
-            ) : (
-              <>
-                <Feather name="refresh-cw" size={14} color={Colors.textMuted} />
-                <Text style={styles.syncText}>Synchronizuj subskrypcję ze Stripe</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.manageBtn} onPress={() => setShowPricing(true)}>
+              <Text style={styles.manageText}>Change plan</Text>
+            </TouchableOpacity>
+          )}
         </GlassCard>
 
         <GlassCard style={styles.section}>
-          <Text style={styles.sectionTitle}>Powiadomienia</Text>
+          <Text style={styles.sectionTitle}>Notifications</Text>
           <View style={styles.switchRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowText}>Powiadomienia push</Text>
-              <Text style={styles.rowSub}>Otrzymuj alerty o nowych ofertach</Text>
+              <Text style={styles.rowText}>Push notifications</Text>
+              <Text style={styles.rowSub}>Get notified when a matching deal appears</Text>
             </View>
             <Switch
               value={pushEnabled}
@@ -167,30 +180,30 @@ export default function SettingsScreen() {
         </GlassCard>
 
         <GlassCard style={styles.section}>
-          <Text style={styles.sectionTitle}>O aplikacji</Text>
-          <View style={styles.row}>
+          <Text style={styles.sectionTitle}>About</Text>
+          <TouchableOpacity style={styles.row} onPress={handleVersionTap}>
             <Feather name="info" size={16} color={Colors.textMuted} />
-            <Text style={styles.rowText}>Wersja 1.0.0</Text>
-          </View>
+            <Text style={styles.rowText}>Version 1.0.0</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/legal/privacy")}>
             <Feather name="shield" size={16} color={Colors.textMuted} />
-            <Text style={styles.rowText}>Polityka prywatności</Text>
+            <Text style={styles.rowText}>Privacy policy</Text>
             <Feather name="chevron-right" size={16} color={Colors.textFaint} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => router.push("/legal/terms")}>
             <Feather name="file-text" size={16} color={Colors.textMuted} />
-            <Text style={styles.rowText}>Regulamin</Text>
+            <Text style={styles.rowText}>Terms of service</Text>
             <Feather name="chevron-right" size={16} color={Colors.textFaint} />
           </TouchableOpacity>
         </GlassCard>
 
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Feather name="log-out" size={16} color={Colors.error} />
-          <Text style={styles.logoutText}>Wyloguj się</Text>
+          <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
       </MotiView>
 
-      <PricingSheet visible={showPricing} onClose={() => setShowPricing(false)} />
+      <PricingSheet visible={showPricing} onClose={() => { setShowPricing(false); loadUser(); }} />
     </ScrollView>
   );
 }
@@ -206,58 +219,31 @@ const styles = StyleSheet.create({
   rowSub: { color: Colors.textMuted, fontSize: 12, marginTop: 1 },
   switchRow: { flexDirection: "row", alignItems: "center", paddingVertical: 4 },
   verifiedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(34,197,94,0.12)",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(34,197,94,0.12)", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
   verifiedText: { color: Colors.success, fontSize: 10, fontWeight: "700" },
   verifyBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "rgba(245,158,11,0.12)",
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(245,158,11,0.12)", borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 3,
   },
   verifyText: { color: Colors.warning, fontSize: 10, fontWeight: "700" },
-  syncBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 11,
-    marginTop: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  syncText: { color: Colors.textMuted, fontSize: 13, fontWeight: "500" },
   upgradeBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: Colors.violet,
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginTop: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    backgroundColor: Colors.violet, borderRadius: 12, paddingVertical: 12, marginTop: 12,
   },
   upgradeBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  manageBtn: {
+    alignItems: "center", paddingVertical: 10, marginTop: 8,
+    borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
+  },
+  manageText: { color: Colors.textMuted, fontSize: 13, fontWeight: "500" },
   logoutBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "rgba(239,68,68,0.25)",
-    paddingVertical: 14,
-    marginTop: 8,
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    borderRadius: 14, borderWidth: 1, borderColor: "rgba(239,68,68,0.25)",
+    paddingVertical: 14, marginTop: 8,
   },
   logoutText: { color: Colors.error, fontWeight: "600", fontSize: 15 },
 });

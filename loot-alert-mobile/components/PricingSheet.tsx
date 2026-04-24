@@ -11,7 +11,6 @@ interface Plan {
   currency: string;
   period: string;
   features: string[];
-  payment_link: string;
   price_id: string;
 }
 
@@ -35,12 +34,19 @@ export function PricingSheet({ visible, onClose }: Props) {
     }
   }, [visible, plans]);
 
-  async function openPlan(plan: Plan) {
-    if (!plan.payment_link) return;
-    setOpening(plan.name);
+  async function startCheckout(planKey: "pro" | "elite", planName: string) {
+    setOpening(planName);
     try {
-      await Linking.openURL(plan.payment_link);
-      onClose();
+      const data = await api.post<{ url: string }>("/api/stripe/checkout", {
+        plan: planKey,
+        return_scheme: "lootalert://",
+      });
+      if (data.url) {
+        await Linking.openURL(data.url);
+        onClose();
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Failed to open checkout");
     } finally {
       setOpening(null);
     }
@@ -58,52 +64,49 @@ export function PricingSheet({ visible, onClose }: Props) {
         >
           <View style={styles.handle} />
 
-          <Text style={styles.title}>Wybierz swój plan</Text>
-          <Text style={styles.sub}>Anuluj w każdej chwili. Bez zobowiązań.</Text>
+          <Text style={styles.title}>Choose your plan</Text>
+          <Text style={styles.sub}>Cancel anytime. No commitment.</Text>
 
           <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 520 }}>
-            {/* FREE PLAN */}
             <PlanCard
               name="Free"
               price="0 zł"
-              tag="Darmowy"
-              features={["3 aktywne alerty", "Polling co 5 min", "Push notifications"]}
+              tag="Free"
+              features={["3 active alerts", "Polling every 5 min", "Push notifications"]}
               onPress={() => {}}
               disabled
               current
             />
 
-            {/* PRO PLAN */}
             {plans?.pro && (
               <PlanCard
                 name={plans.pro.name}
                 price={`${plans.pro.price.toString().replace(".", ",")} zł`}
-                period={`/${plans.pro.period}`}
-                tag="Popularny"
+                period="/month"
+                tag="Popular"
                 highlighted
                 features={plans.pro.features}
-                onPress={() => openPlan(plans.pro)}
+                onPress={() => startCheckout("pro", plans.pro.name)}
                 loading={opening === plans.pro.name}
               />
             )}
 
-            {/* ELITE PLAN */}
             {plans?.elite && (
               <PlanCard
                 name={plans.elite.name}
                 price={`${plans.elite.price.toString().replace(".", ",")} zł`}
-                period={`/${plans.elite.period}`}
-                tag="Dla power-userów"
+                period="/month"
+                tag="Power user"
                 accent="fuchsia"
                 features={plans.elite.features}
-                onPress={() => openPlan(plans.elite)}
+                onPress={() => startCheckout("elite", plans.elite.name)}
                 loading={opening === plans.elite.name}
               />
             )}
           </ScrollView>
 
           <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-            <Text style={styles.cancelText}>Może później</Text>
+            <Text style={styles.cancelText}>Maybe later</Text>
           </TouchableOpacity>
         </MotiView>
       </View>
@@ -169,7 +172,7 @@ function PlanCard({ name, price, period, tag, features, onPress, highlighted, ac
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={[styles.ctaText, current && { color: Colors.textMuted }]}>
-            {current ? "Aktualny plan" : `Wybierz ${name}`}
+            {current ? "Current plan" : `Get ${name}`}
           </Text>
         )}
       </TouchableOpacity>

@@ -19,7 +19,7 @@ export default function LoginScreen() {
   async function handleLogin() {
     setError("");
     if (!email || !password) {
-      setError("Wypełnij wszystkie pola");
+      setError("Fill in all fields");
       return;
     }
     setLoading(true);
@@ -29,7 +29,7 @@ export default function LoginScreen() {
       registerForPushNotifications().catch(() => {});
       router.replace("/(tabs)");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Błąd logowania");
+      setError(e instanceof Error ? e.message : "Sign-in failed");
     } finally {
       setLoading(false);
     }
@@ -49,8 +49,8 @@ export default function LoginScreen() {
           style={styles.card}
         >
           <Text style={styles.logo}>LootAlert</Text>
-          <Text style={styles.title}>Zaloguj się</Text>
-          <Text style={styles.subtitle}>Monitoruj oferty second-hand</Text>
+          <Text style={styles.title}>Sign in</Text>
+          <Text style={styles.subtitle}>Monitor second-hand deals</Text>
 
           <TextInput
             style={styles.input}
@@ -63,7 +63,7 @@ export default function LoginScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Hasło"
+            placeholder="Password"
             placeholderTextColor={Colors.textFaint}
             value={password}
             onChangeText={setPassword}
@@ -76,12 +76,12 @@ export default function LoginScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Zaloguj się</Text>
+              <Text style={styles.buttonText}>Sign in</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push("/(auth)/register")} style={styles.link}>
-            <Text style={styles.linkText}>Nie masz konta? <Text style={{ color: Colors.violetLight }}>Zarejestruj się</Text></Text>
+            <Text style={styles.linkText}>No account? <Text style={{ color: Colors.violetLight }}>Sign up</Text></Text>
           </TouchableOpacity>
         </MotiView>
       </ScrollView>

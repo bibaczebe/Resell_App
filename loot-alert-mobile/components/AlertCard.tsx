@@ -61,7 +61,7 @@ export function AlertCard({ alert, index, onToggle, onDelete }: Props) {
             </View>
             <View style={styles.meta}>
               {alert.max_price ? (
-                <Text style={styles.price}>do {alert.max_price} zł</Text>
+                <Text style={styles.price}>up to {alert.max_price} zł</Text>
               ) : null}
               <Text style={styles.hits}>
                 <Feather name="bell" size={11} color={Colors.textMuted} /> {alert.trigger_count}

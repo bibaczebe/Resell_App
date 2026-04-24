@@ -63,7 +63,7 @@ export default function AlertDetailScreen() {
   if (!alert) {
     return (
       <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <Text style={{ color: Colors.textMuted }}>Alert nie znaleziony</Text>
+        <Text style={{ color: Colors.textMuted }}>Alert not found</Text>
       </View>
     );
   }
@@ -88,28 +88,28 @@ export default function AlertDetailScreen() {
           <View style={styles.statsRow}>
             <View style={styles.stat}>
               <Text style={styles.statValue}>{alert.trigger_count}</Text>
-              <Text style={styles.statLabel}>Trafień</Text>
+              <Text style={styles.statLabel}>Matches</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.stat}>
               <View style={[styles.dot, { backgroundColor: alert.is_active ? Colors.success : Colors.textFaint }]} />
-              <Text style={styles.statLabel}>{alert.is_active ? "Aktywny" : "Nieaktywny"}</Text>
+              <Text style={styles.statLabel}>{alert.is_active ? "Active" : "Paused"}</Text>
             </View>
             <View style={styles.divider} />
             <View style={styles.stat}>
               <Text style={styles.statValue}>{alert.max_price ? `${alert.max_price} zł` : "∞"}</Text>
-              <Text style={styles.statLabel}>Max cena</Text>
+              <Text style={styles.statLabel}>Max price</Text>
             </View>
           </View>
         </GlassCard>
       </MotiView>
 
-      <Text style={styles.sectionTitle}>Historia trafień</Text>
+      <Text style={styles.sectionTitle}>Match history</Text>
 
       {hits.length === 0 ? (
         <View style={styles.empty}>
           <Feather name="inbox" size={40} color={Colors.textFaint} style={{ marginBottom: 12 }} />
-          <Text style={styles.emptyText}>Brak trafień. Alert jest aktywny i monitoruje ogłoszenia.</Text>
+          <Text style={styles.emptyText}>No matches yet. The alert is active and polling listings.</Text>
         </View>
       ) : (
         <FlatList

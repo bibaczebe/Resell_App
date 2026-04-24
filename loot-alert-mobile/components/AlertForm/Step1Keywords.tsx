@@ -17,18 +17,18 @@ export function Step1Keywords({ name, keywords, onNameChange, onKeywordsChange }
       exit={{ opacity: 0, translateX: -40 }}
       transition={{ type: "timing", duration: 300 }}
     >
-      <Text style={styles.label}>Nazwa alertu</Text>
+      <Text style={styles.label}>Alert name</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. iPhone 13 Pro, felgi BBS 18"
+        placeholder="e.g. iPhone 13 Pro, BBS 18 rims"
         placeholderTextColor={Colors.textFaint}
         value={name}
         onChangeText={onNameChange}
       />
-      <Text style={styles.label}>Słowa kluczowe</Text>
+      <Text style={styles.label}>Keywords</Text>
       <TextInput
         style={[styles.input, styles.textArea]}
-        placeholder={"np. iPhone 13 Pro 128GB\nLub: Huawei Mate, Lego Star Wars, Opony zimowe 205"}
+        placeholder={"e.g. iPhone 13 Pro 128GB\nOr: Huawei Mate, Lego Star Wars, Winter tires 205"}
         placeholderTextColor={Colors.textFaint}
         value={keywords}
         onChangeText={onKeywordsChange}
@@ -36,8 +36,8 @@ export function Step1Keywords({ name, keywords, onNameChange, onKeywordsChange }
         numberOfLines={3}
       />
       <Text style={styles.hint}>
-        Szukamy wszystkiego: elektronika, motoryzacja, moda, kolekcje, AGD/RTV, meble, hobby.
-        System znajdzie oferty zawierające te słowa w tytule.
+        We search across everything: electronics, cars, fashion, collectibles, home, hobby.
+        System finds offers containing these words in the title.
       </Text>
     </MotiView>
   );

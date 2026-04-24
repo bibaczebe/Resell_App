@@ -71,8 +71,8 @@ export default function DashboardScreen() {
         <View>
           <Text style={styles.logo}>LOOTALERT</Text>
           <Text style={styles.greeting}>
-            {activeCount > 0 ? `${activeCount} aktywnych ` : "Zacznij łapać "}
-            <Text style={{ color: Colors.violetLight }}>okazje</Text>
+            {activeCount > 0 ? `${activeCount} active ` : "Start hunting "}
+            <Text style={{ color: Colors.violetLight }}>deals</Text>
           </Text>
         </View>
       </View>
@@ -83,7 +83,7 @@ export default function DashboardScreen() {
           animate={{ opacity: 1 }}
           style={styles.empty}
         >
-          <Text style={styles.emptyText}>Ładowanie alertów...</Text>
+          <Text style={styles.emptyText}>Loading alerts…</Text>
         </MotiView>
       ) : alerts.length === 0 ? (
         <MotiView
@@ -93,13 +93,13 @@ export default function DashboardScreen() {
           style={styles.empty}
         >
           <Feather name="bell-off" size={48} color={Colors.textFaint} style={{ marginBottom: 16 }} />
-          <Text style={styles.emptyTitle}>Brak alertów</Text>
-          <Text style={styles.emptyText}>Utwórz pierwszy alert i zacznij łapać okazje</Text>
+          <Text style={styles.emptyTitle}>No alerts yet</Text>
+          <Text style={styles.emptyText}>Create your first alert and start catching deals</Text>
           <TouchableOpacity
             style={styles.emptyBtn}
             onPress={() => router.push("/(tabs)/new")}
           >
-            <Text style={styles.emptyBtnText}>Utwórz alert</Text>
+            <Text style={styles.emptyBtnText}>Create alert</Text>
           </TouchableOpacity>
         </MotiView>
       ) : (

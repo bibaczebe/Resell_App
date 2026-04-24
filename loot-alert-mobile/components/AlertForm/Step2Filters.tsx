@@ -16,9 +16,9 @@ interface Props {
 }
 
 const CONDITIONS: { value: "any" | "new" | "used"; label: string }[] = [
-  { value: "any", label: "Każdy" },
-  { value: "new", label: "Nowy" },
-  { value: "used", label: "Używany" },
+  { value: "any", label: "Any" },
+  { value: "new", label: "New" },
+  { value: "used", label: "Used" },
 ];
 
 export function Step2Filters({
@@ -34,7 +34,7 @@ export function Step2Filters({
     >
       <View style={styles.row}>
         <View style={styles.half}>
-          <Text style={styles.label}>Cena od (zł)</Text>
+          <Text style={styles.label}>Min price (zł)</Text>
           <TextInput
             style={styles.input}
             placeholder="0"
@@ -45,10 +45,10 @@ export function Step2Filters({
           />
         </View>
         <View style={styles.half}>
-          <Text style={styles.label}>Cena do (zł)</Text>
+          <Text style={styles.label}>Max price (zł)</Text>
           <TextInput
             style={styles.input}
-            placeholder="brak limitu"
+            placeholder="no limit"
             placeholderTextColor={Colors.textFaint}
             value={maxPrice}
             onChangeText={onMaxPriceChange}
@@ -57,25 +57,25 @@ export function Step2Filters({
         </View>
       </View>
 
-      <Text style={styles.label}>Dodatkowe słowo kluczowe (opcjonalnie)</Text>
+      <Text style={styles.label}>Extra keyword (optional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. 42, XL, 128GB, 205/55 R16, bez wad"
+        placeholder="e.g. 42, XL, 128GB, 205/55 R16"
         placeholderTextColor={Colors.textFaint}
         value={size}
         onChangeText={onSizeChange}
       />
 
-      <Text style={styles.label}>Musi zawierać (opcjonalnie)</Text>
+      <Text style={styles.label}>Must contain (optional)</Text>
       <TextInput
         style={styles.input}
-        placeholder="np. czarny, OEM, nowy, z gwarancją"
+        placeholder="e.g. black, OEM, new, with warranty"
         placeholderTextColor={Colors.textFaint}
         value={color}
         onChangeText={onColorChange}
       />
 
-      <Text style={styles.label}>Stan przedmiotu</Text>
+      <Text style={styles.label}>Condition</Text>
       <View style={styles.conditionRow}>
         {CONDITIONS.map((c) => (
           <TouchableOpacity

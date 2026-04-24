@@ -13,7 +13,7 @@ import { Step2Filters } from "../../components/AlertForm/Step2Filters";
 import { Step3Sources } from "../../components/AlertForm/Step3Sources";
 import { api } from "../../lib/api";
 
-const STEPS = ["Słowa kluczowe", "Filtry", "Portale"];
+const STEPS = ["Keywords", "Filters", "Sources"];
 
 export default function NewAlertScreen() {
   const insets = useSafeAreaInsets();
@@ -43,7 +43,7 @@ export default function NewAlertScreen() {
 
   async function handleSubmit() {
     if (sources.length === 0) {
-      Alert.alert("Błąd", "Wybierz co najmniej jeden portal");
+      Alert.alert("Error", "Choose at least one source");
       return;
     }
     setLoading(true);
@@ -60,8 +60,8 @@ export default function NewAlertScreen() {
       });
       router.replace("/(tabs)");
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Nie udało się utworzyć alertu";
-      Alert.alert("Błąd", msg);
+      const msg = e instanceof Error ? e.message : "Failed to create alert";
+      Alert.alert("Error", msg);
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function NewAlertScreen() {
           <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : router.back())}>
             <Feather name="arrow-left" size={22} color={Colors.text} />
           </TouchableOpacity>
-          <Text style={styles.title}>Nowy alert</Text>
+          <Text style={styles.title}>New alert</Text>
           <View style={{ width: 22 }} />
         </View>
 
@@ -92,7 +92,7 @@ export default function NewAlertScreen() {
           ))}
         </View>
 
-        <Text style={styles.stepLabel}>{`Krok ${step + 1} z ${STEPS.length}: ${STEPS[step]}`}</Text>
+        <Text style={styles.stepLabel}>{`Step ${step + 1} of ${STEPS.length}: ${STEPS[step]}`}</Text>
 
         <ScrollView
           contentContainerStyle={styles.form}
@@ -133,7 +133,7 @@ export default function NewAlertScreen() {
               onPress={() => setStep(step + 1)}
               disabled={!canProceed()}
             >
-              <Text style={styles.btnText}>Dalej</Text>
+              <Text style={styles.btnText}>Next</Text>
               <Feather name="arrow-right" size={18} color="#fff" />
             </TouchableOpacity>
           ) : (
@@ -147,7 +147,7 @@ export default function NewAlertScreen() {
               ) : (
                 <>
                   <Feather name="check" size={18} color="#fff" />
-                  <Text style={styles.btnText}>Utwórz alert</Text>
+                  <Text style={styles.btnText}>Create alert</Text>
                 </>
               )}
             </TouchableOpacity>

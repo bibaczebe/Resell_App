@@ -20,15 +20,15 @@ export default function RegisterScreen() {
   async function handleRegister() {
     setError("");
     if (!email || !password) {
-      setError("Wypełnij wszystkie pola");
+      setError("Fill in all fields");
       return;
     }
     if (password !== confirm) {
-      setError("Hasła nie są identyczne");
+      setError("Passwords do not match");
       return;
     }
     if (password.length < 8) {
-      setError("Hasło musi mieć min. 8 znaków");
+      setError("Password must be at least 8 characters");
       return;
     }
     setLoading(true);
@@ -36,11 +36,9 @@ export default function RegisterScreen() {
       const normalizedEmail = email.trim().toLowerCase();
       await register(normalizedEmail, password);
       registerForPushNotifications().catch(() => {});
-      // Verification is optional; user lands on dashboard immediately.
-      // They can verify later from Settings if they want.
       router.replace("/(tabs)");
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Błąd rejestracji");
+      setError(e instanceof Error ? e.message : "Sign-up failed");
     } finally {
       setLoading(false);
     }
@@ -60,8 +58,8 @@ export default function RegisterScreen() {
           style={styles.card}
         >
           <Text style={styles.logo}>LootAlert</Text>
-          <Text style={styles.title}>Utwórz konto</Text>
-          <Text style={styles.subtitle}>Zacznij za darmo – 3 alerty bez opłat</Text>
+          <Text style={styles.title}>Create account</Text>
+          <Text style={styles.subtitle}>Start free – 3 alerts included</Text>
 
           <TextInput
             style={styles.input}
@@ -74,7 +72,7 @@ export default function RegisterScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Hasło (min. 8 znaków)"
+            placeholder="Password (min. 8 chars)"
             placeholderTextColor={Colors.textFaint}
             value={password}
             onChangeText={setPassword}
@@ -82,7 +80,7 @@ export default function RegisterScreen() {
           />
           <TextInput
             style={styles.input}
-            placeholder="Powtórz hasło"
+            placeholder="Repeat password"
             placeholderTextColor={Colors.textFaint}
             value={confirm}
             onChangeText={setConfirm}
@@ -95,12 +93,12 @@ export default function RegisterScreen() {
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Zarejestruj się</Text>
+              <Text style={styles.buttonText}>Create account</Text>
             )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.back()} style={styles.link}>
-            <Text style={styles.linkText}>Masz konto? <Text style={{ color: Colors.violetLight }}>Zaloguj się</Text></Text>
+            <Text style={styles.linkText}>Have an account? <Text style={{ color: Colors.violetLight }}>Sign in</Text></Text>
           </TouchableOpacity>
         </MotiView>
       </ScrollView>
