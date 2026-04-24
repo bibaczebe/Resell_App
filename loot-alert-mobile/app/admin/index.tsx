@@ -25,14 +25,25 @@ export default function AdminDashboard() {
         router.replace("/admin/login");
         return;
       }
-      const [s, u] = await Promise.all([adminApi.stats(), adminApi.users()]);
-      setStats(s);
-      setUsers(u.users);
-    } catch (e: unknown) {
-      if (e instanceof Error && e.message === "Unauthorized") {
-        await clearAdminToken();
-        router.replace("/admin/login");
+      try {
+        const s = await adminApi.stats();
+        setStats(s);
+      } catch (e) {
+        console.warn("admin stats error:", e);
       }
+      try {
+        const u = await adminApi.users();
+        setUsers(u.users);
+      } catch (e: unknown) {
+        if (e instanceof Error && e.message === "Unauthorized") {
+          await clearAdminToken();
+          router.replace("/admin/login");
+          return;
+        }
+        console.warn("admin users error:", e);
+      }
+    } catch (e) {
+      console.warn("admin load error:", e);
     } finally {
       setLoading(false);
       setRefreshing(false);

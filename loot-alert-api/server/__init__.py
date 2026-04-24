@@ -251,6 +251,149 @@ def create_app() -> Flask:
             result["steps"].append({"step": "error", "error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()})
         return jsonify(result), 200
 
+    @app.route("/api/debug/all-tests", methods=["GET"])
+    def debug_all_tests():
+        """Run every integration check in one go. Public on purpose – it does not
+        expose secrets, only presence/validity booleans."""
+        import time as _time
+        from server.config import (
+            DATABASE_URL, REDIS_URL, SECRET_KEY, EXPO_ACCESS_TOKEN,
+            STRIPE_SECRET_KEY, STRIPE_PRICE_PRO, STRIPE_PRICE_ELITE,
+            ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET,
+            SCRAPER_API_KEY, RESEND_API_KEY,
+        )
+        results: dict = {"timestamp": int(_time.time())}
+
+        # --- Environment ---
+        results["env"] = {
+            "DATABASE_URL": bool(DATABASE_URL),
+            "REDIS_URL": bool(REDIS_URL),
+            "SECRET_KEY": bool(SECRET_KEY),
+            "EXPO_ACCESS_TOKEN": bool(EXPO_ACCESS_TOKEN),
+            "STRIPE_SECRET_KEY": bool(STRIPE_SECRET_KEY),
+            "STRIPE_SECRET_KEY_mode": (
+                "test" if STRIPE_SECRET_KEY.startswith("sk_test_") else
+                "live" if STRIPE_SECRET_KEY.startswith("sk_live_") else
+                "unknown"
+            ),
+            "STRIPE_PRICE_PRO": bool(STRIPE_PRICE_PRO),
+            "STRIPE_PRICE_ELITE": bool(STRIPE_PRICE_ELITE),
+            "ALLEGRO_CLIENT_ID": bool(ALLEGRO_CLIENT_ID),
+            "ALLEGRO_CLIENT_SECRET": bool(ALLEGRO_CLIENT_SECRET),
+            "SCRAPER_API_KEY": bool(SCRAPER_API_KEY),
+            "RESEND_API_KEY": bool(RESEND_API_KEY),
+        }
+
+        # --- Postgres ---
+        try:
+            import psycopg2
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=5)
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM users")
+            users = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM alerts")
+            alerts_count = cur.fetchone()[0]
+            cur.close()
+            conn.close()
+            results["postgres"] = {"ok": True, "users": users, "alerts": alerts_count}
+        except Exception as e:
+            results["postgres"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- Redis ---
+        try:
+            import redis as rd
+            r = rd.from_url(REDIS_URL, decode_responses=True, socket_timeout=3)
+            r.set("test:healthcheck", "1", ex=5)
+            results["redis"] = {"ok": True, "value": r.get("test:healthcheck")}
+        except Exception as e:
+            results["redis"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- Stripe ---
+        try:
+            import stripe as stripe_lib
+            stripe_lib.api_key = STRIPE_SECRET_KEY
+            b = stripe_lib.Balance.retrieve()
+            results["stripe"] = {"ok": True, "livemode": b.livemode}
+        except Exception as e:
+            results["stripe"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- Resend ---
+        try:
+            import requests as rq
+            r = rq.get(
+                "https://api.resend.com/domains",
+                headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+                timeout=6,
+            )
+            results["resend"] = {"ok": r.status_code == 200, "status": r.status_code}
+        except Exception as e:
+            results["resend"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- ScraperAPI ---
+        try:
+            import requests as rq
+            r = rq.get(
+                f"http://api.scraperapi.com/account?api_key={SCRAPER_API_KEY}",
+                timeout=6,
+            )
+            if r.status_code == 200:
+                d = r.json()
+                results["scraperapi"] = {
+                    "ok": True,
+                    "requests_used": d.get("requestCount"),
+                    "requests_limit": d.get("requestLimit"),
+                }
+            else:
+                results["scraperapi"] = {"ok": False, "status": r.status_code, "body": r.text[:200]}
+        except Exception as e:
+            results["scraperapi"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- Allegro OAuth ---
+        try:
+            import requests as rq
+            t = rq.post(
+                "https://allegro.pl/auth/oauth/token",
+                data={"grant_type": "client_credentials"},
+                auth=(ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET),
+                timeout=6,
+            )
+            if t.status_code == 200:
+                tok = t.json().get("access_token")
+                # try public listing
+                s = rq.get(
+                    "https://api.allegro.pl/offers/listing",
+                    params={"phrase": "test", "limit": 1},
+                    headers={
+                        "Authorization": f"Bearer {tok}",
+                        "Accept": "application/vnd.allegro.public.v1+json",
+                    },
+                    timeout=6,
+                )
+                results["allegro"] = {
+                    "token_ok": True,
+                    "listing_ok": s.status_code == 200,
+                    "listing_status": s.status_code,
+                    "listing_error": s.text[:200] if s.status_code != 200 else None,
+                }
+            else:
+                results["allegro"] = {"token_ok": False, "status": t.status_code}
+        except Exception as e:
+            results["allegro"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- OLX scraper ---
+        try:
+            from server.scrapers import olx
+            items = olx.search("Nike", limit=3)
+            results["olx_scraper"] = {"ok": len(items) > 0, "count": len(items)}
+        except Exception as e:
+            results["olx_scraper"] = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+        # --- Overall ---
+        failing = [k for k in ("postgres", "redis", "stripe") if not results.get(k, {}).get("ok")]
+        results["overall"] = "critical_failure" if failing else "ok"
+        results["failing_critical"] = failing
+        return jsonify(results), 200
+
     @app.route("/api/debug/stripe-key", methods=["GET"])
     def debug_stripe_key():
         from server.config import STRIPE_SECRET_KEY, STRIPE_PRICE_PRO, STRIPE_PRICE_ELITE, STRIPE_LINK_PRO, STRIPE_LINK_ELITE

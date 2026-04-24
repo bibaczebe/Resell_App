@@ -11,9 +11,17 @@ JWT_EXPIRE_HOURS = 24 * 7  # 7 days
 EXPO_ACCESS_TOKEN = os.environ.get("EXPO_ACCESS_TOKEN", "")
 
 def _clean_env(key: str, default: str = "") -> str:
-    """Get env var and strip whitespace/newlines (common copy-paste issue)."""
+    """Get env var and strip whitespace, newlines AND surrounding quotes."""
     val = os.environ.get(key, default)
-    return val.strip() if val else default
+    if not val:
+        return default
+    val = val.strip()
+    # Drop matched surrounding quotes that Railway Raw Editor may keep literal
+    if len(val) >= 2 and (
+        (val[0] == '"' and val[-1] == '"') or (val[0] == "'" and val[-1] == "'")
+    ):
+        val = val[1:-1].strip()
+    return val
 
 
 STRIPE_SECRET_KEY = _clean_env("STRIPE_SECRET_KEY")

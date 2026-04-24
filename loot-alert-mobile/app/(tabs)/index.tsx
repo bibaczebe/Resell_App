@@ -65,7 +65,7 @@ export default function DashboardScreen() {
   const activeCount = alerts.filter((a) => a.is_active).length;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+    <View style={[styles.container, { paddingTop: insets.top + 12 }]} pointerEvents="box-none">
       <AuroraBg />
       <View style={styles.header}>
         <View>

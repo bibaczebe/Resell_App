@@ -135,3 +135,65 @@ def alert_history(alert_id: int):
         (alert_id,),
     )
     return jsonify([dict(r) for r in cur.fetchall()]), 200
+
+
+@alerts_bp.route("/api/alerts/<int:alert_id>/current-matches", methods=["GET"])
+@require_auth
+def alert_current_matches(alert_id: int):
+    """Fetch listings that currently match the alert (existing offers, not just new ones).
+    Runs scrapers on-demand, returns combined + deduplicated results.
+    """
+    from server.scrapers import olx, vinted, allegro
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute(
+        """SELECT id, keywords, size, color, max_price, min_price, sources, condition
+           FROM alerts WHERE id = %s AND user_id = %s""",
+        (alert_id, request.user_id),
+    )
+    alert = cur.fetchone()
+    if not alert:
+        return jsonify({"error": "Alert not found"}), 404
+
+    keywords = alert["keywords"]
+    max_price = alert["max_price"]
+    min_price = alert["min_price"] or 0
+    condition = alert["condition"] or "any"
+    sources = alert["sources"] or ["olx", "vinted", "allegro"]
+
+    scraper_map = {"olx": olx.search, "vinted": vinted.search, "allegro": allegro.search}
+
+    results = []
+    for source in sources:
+        search_fn = scraper_map.get(source)
+        if not search_fn:
+            continue
+        try:
+            items = search_fn(
+                keywords=keywords,
+                max_price=float(max_price) if max_price else None,
+                min_price=float(min_price),
+                condition=condition,
+                limit=25,
+            )
+            for it in items:
+                # filter by extra keyword (size field)
+                if alert["size"] and alert["size"].lower() not in it.title.lower():
+                    continue
+                if alert["color"] and alert["color"].lower() not in it.title.lower():
+                    continue
+                results.append({
+                    "id": it.id,
+                    "title": it.title,
+                    "price": it.price,
+                    "url": it.url,
+                    "image_url": it.image_url,
+                    "source": it.source,
+                })
+        except Exception:
+            pass
+
+    # sort by price ascending (cheapest first)
+    results.sort(key=lambda x: (x["price"] is None, x["price"] or 0))
+    return jsonify({"matches": results, "count": len(results)}), 200

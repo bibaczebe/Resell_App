@@ -6,6 +6,7 @@ import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { GlassCard } from "../../components/ui/GlassCard";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 import { api } from "../../lib/api";
 
 interface Hit {
@@ -14,6 +15,15 @@ interface Hit {
   listing_price: number | null;
   source: string;
   sent_at: string;
+}
+
+interface CurrentMatch {
+  id: string;
+  title: string;
+  price: number | null;
+  url: string;
+  image_url: string | null;
+  source: string;
 }
 
 interface AlertDetail {
@@ -27,12 +37,17 @@ interface AlertDetail {
   last_triggered_at: string | null;
 }
 
+type TabKey = "current" | "history";
+
 export default function AlertDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [alert, setAlert] = useState<AlertDetail | null>(null);
   const [hits, setHits] = useState<Hit[]>([]);
+  const [currentMatches, setCurrentMatches] = useState<CurrentMatch[]>([]);
+  const [loadingCurrent, setLoadingCurrent] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<TabKey>("current");
 
   useEffect(() => {
     if (!id) return;
@@ -45,11 +60,27 @@ export default function AlertDetailScreen() {
         setHits(hitsData);
       })
       .finally(() => setLoading(false));
+    loadCurrent();
   }, [id]);
+
+  async function loadCurrent() {
+    if (!id) return;
+    setLoadingCurrent(true);
+    try {
+      const res = await api.get<{ matches: CurrentMatch[]; count: number }>(
+        `/api/alerts/${id}/current-matches`
+      );
+      setCurrentMatches(res.matches);
+    } catch {
+      // silent
+    } finally {
+      setLoadingCurrent(false);
+    }
+  }
 
   function formatDate(dateStr: string) {
     const d = new Date(dateStr);
-    return d.toLocaleString("pl-PL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleString("en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   }
 
   if (loading) {
@@ -70,6 +101,7 @@ export default function AlertDetailScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+      <AuroraBg />
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => router.back()}>
           <Feather name="arrow-left" size={22} color={Colors.text} />
@@ -104,12 +136,74 @@ export default function AlertDetailScreen() {
         </GlassCard>
       </MotiView>
 
-      <Text style={styles.sectionTitle}>Match history</Text>
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, tab === "current" && styles.tabActive]}
+          onPress={() => setTab("current")}
+        >
+          <Text style={[styles.tabText, tab === "current" && styles.tabTextActive]}>
+            Current offers
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, tab === "history" && styles.tabActive]}
+          onPress={() => setTab("history")}
+        >
+          <Text style={[styles.tabText, tab === "history" && styles.tabTextActive]}>
+            Notified ({hits.length})
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-      {hits.length === 0 ? (
+      {tab === "current" ? (
+        loadingCurrent ? (
+          <View style={styles.empty}>
+            <ActivityIndicator color={Colors.violetLight} />
+            <Text style={[styles.emptyText, { marginTop: 12 }]}>Searching marketplaces…</Text>
+          </View>
+        ) : currentMatches.length === 0 ? (
+          <View style={styles.empty}>
+            <Feather name="search" size={40} color={Colors.textFaint} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>No offers match right now. The alert will catch new listings as they appear.</Text>
+            <TouchableOpacity style={styles.refreshBtn} onPress={loadCurrent}>
+              <Feather name="refresh-cw" size={14} color={Colors.violetLight} />
+              <Text style={styles.refreshText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <FlatList
+            data={currentMatches}
+            keyExtractor={(m, i) => `${m.source}-${m.id}-${i}`}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item, index }) => (
+              <MotiView
+                from={{ opacity: 0, translateY: 10 }}
+                animate={{ opacity: 1, translateY: 0 }}
+                transition={{ delay: index * 30 }}
+              >
+                <TouchableOpacity onPress={() => Linking.openURL(item.url)} activeOpacity={0.8}>
+                  <GlassCard style={styles.hitCard}>
+                    <View style={styles.hitHeader}>
+                      <View style={styles.sourceTag}>
+                        <Text style={styles.sourceText}>{item.source?.toUpperCase()}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.hitTitle} numberOfLines={2}>{item.title}</Text>
+                    <View style={styles.hitFooter}>
+                      {item.price ? <Text style={styles.hitPrice}>{item.price} zł</Text> : null}
+                      <Feather name="external-link" size={14} color={Colors.textMuted} />
+                    </View>
+                  </GlassCard>
+                </TouchableOpacity>
+              </MotiView>
+            )}
+          />
+        )
+      ) : hits.length === 0 ? (
         <View style={styles.empty}>
           <Feather name="inbox" size={40} color={Colors.textFaint} style={{ marginBottom: 12 }} />
-          <Text style={styles.emptyText}>No matches yet. The alert is active and polling listings.</Text>
+          <Text style={styles.emptyText}>No notifications sent yet. The alert is active and polling listings.</Text>
         </View>
       ) : (
         <FlatList
@@ -170,6 +264,39 @@ const styles = StyleSheet.create({
   divider: { width: 1, height: 32, backgroundColor: Colors.border },
   dot: { width: 10, height: 10, borderRadius: 5 },
   sectionTitle: { color: Colors.text, fontSize: 15, fontWeight: "600", paddingHorizontal: 20, marginBottom: 10 },
+  tabBar: {
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    marginBottom: 14,
+    gap: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  tabActive: {
+    borderColor: Colors.violet,
+    backgroundColor: "rgba(124,58,237,0.12)",
+  },
+  tabText: { color: Colors.textMuted, fontSize: 13, fontWeight: "500" },
+  tabTextActive: { color: Colors.violetLight, fontWeight: "700" },
+  refreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  refreshText: { color: Colors.violetLight, fontSize: 13, fontWeight: "600" },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
   hitCard: { marginBottom: 8 },
   hitHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },

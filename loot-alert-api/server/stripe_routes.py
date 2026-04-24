@@ -91,7 +91,7 @@ def create_checkout():
         session = stripe.checkout.Session.create(
             customer=customer_id,
             client_reference_id=str(request.user_id),
-            payment_method_types=["card", "blik", "p24"],
+            payment_method_types=["card"],  # BLIK/P24 don't support subscription mode
             line_items=[{"price": price_id, "quantity": 1}],
             mode="subscription",
             success_url=f"{app_scheme}paid?plan={plan}",
@@ -100,7 +100,7 @@ def create_checkout():
             subscription_data={
                 "metadata": {"user_id": str(request.user_id), "plan": plan},
             },
-            locale="pl",
+            locale="auto",
         )
         return jsonify({"url": session.url}), 200
     except Exception as e:

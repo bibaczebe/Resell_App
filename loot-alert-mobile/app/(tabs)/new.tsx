@@ -12,6 +12,7 @@ import { Step1Keywords } from "../../components/AlertForm/Step1Keywords";
 import { Step2Filters } from "../../components/AlertForm/Step2Filters";
 import { Step3Sources } from "../../components/AlertForm/Step3Sources";
 import { api } from "../../lib/api";
+import { AuroraBg } from "../../components/ui/AuroraBg";
 
 const STEPS = ["Keywords", "Filters", "Sources"];
 
@@ -73,6 +74,7 @@ export default function NewAlertScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={[styles.container, { paddingTop: insets.top + 12 }]}>
+        <AuroraBg />
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => (step > 0 ? setStep(step - 1) : router.back())}>
             <Feather name="arrow-left" size={22} color={Colors.text} />

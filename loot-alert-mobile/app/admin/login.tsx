@@ -21,7 +21,7 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       await adminApi.login(username.trim(), password);
-      router.replace("/admin");
+      router.replace("/admin/");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Invalid credentials");
     } finally {
