@@ -1,0 +1,147 @@
+{
+  "name": "LootAlert - Vinted Scraper",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 2 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://resellapp-production.up.railway.app/api/webhook/alerts",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Webhook-Secret",
+              "value": "lootalert-n8n-2026"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fetch-alerts",
+      "name": "Fetch Active Alerts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "alerts",
+        "options": {}
+      },
+      "id": "split-alerts",
+      "name": "Split per Alert",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sources }}",
+              "rightValue": "vinted",
+              "operator": { "type": "array", "operation": "contains" }
+            }
+          ]
+        }
+      },
+      "id": "filter-vinted",
+      "name": "Only Vinted Alerts",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.vinted.pl/api/v2/catalog/items?search_text={{ encodeURIComponent($json.keywords) }}&per_page=25&order=newest_first{{ $json.max_price ? '&price_to=' + $json.max_price : '' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "User-Agent", "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36" },
+            { "name": "Accept", "value": "application/json" },
+            { "name": "Referer", "value": "https://www.vinted.pl/" }
+          ]
+        },
+        "options": {
+          "proxy": "http://scraperapi:4b75954442f7f8b52ff32e81817e1686@proxy-server.scraperapi.com:8001"
+        }
+      },
+      "id": "scrape-vinted",
+      "name": "Scrape Vinted via ScraperAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.item.json.items || [];\nconst alert = $('Filter Vinted Alerts').item.json;\nconst listings = items.map(i => ({\n  id: String(i.id),\n  title: i.title || '',\n  price: parseFloat((i.price && i.price.amount) || 0) || null,\n  url: i.url?.startsWith('http') ? i.url : 'https://www.vinted.pl' + (i.url || ''),\n  image_url: (i.photo && i.photo.url) || null,\n  source: 'vinted'\n}));\nreturn [{ json: { alert_id: alert.id, listings } }];"
+      },
+      "id": "format-listings",
+      "name": "Format for LootAlert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://resellapp-production.up.railway.app/api/webhook/n8n/listings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "X-Webhook-Secret", "value": "lootalert-n8n-2026" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "push-listings",
+      "name": "POST to LootAlert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 300]
+    }
+  ],
+  "connections": {
+    "Every 2 min": {
+      "main": [[{ "node": "Fetch Active Alerts", "type": "main", "index": 0 }]]
+    },
+    "Fetch Active Alerts": {
+      "main": [[{ "node": "Split per Alert", "type": "main", "index": 0 }]]
+    },
+    "Split per Alert": {
+      "main": [[{ "node": "Only Vinted Alerts", "type": "main", "index": 0 }]]
+    },
+    "Only Vinted Alerts": {
+      "main": [[{ "node": "Scrape Vinted via ScraperAPI", "type": "main", "index": 0 }]]
+    },
+    "Scrape Vinted via ScraperAPI": {
+      "main": [[{ "node": "Format for LootAlert", "type": "main", "index": 0 }]]
+    },
+    "Format for LootAlert": {
+      "main": [[{ "node": "POST to LootAlert", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

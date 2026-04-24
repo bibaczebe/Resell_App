@@ -40,8 +40,10 @@ ALLEGRO_API_BASE = "https://api.allegro.pl"
 SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
 SCRAPER_API_BASE = "http://api.scraperapi.com/"
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL", "LootAlert <onboarding@resend.dev>")
+RESEND_API_KEY = _clean_env("RESEND_API_KEY")
+RESEND_FROM_EMAIL = _clean_env("RESEND_FROM_EMAIL", "LootAlert <onboarding@resend.dev>")
+
+N8N_WEBHOOK_SECRET = _clean_env("N8N_WEBHOOK_SECRET", "lootalert-n8n-2026")
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
