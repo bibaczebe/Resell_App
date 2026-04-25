@@ -69,10 +69,18 @@ def create_checkout():
 
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT email, stripe_customer_id FROM users WHERE id = %s", (request.user_id,))
+    cur.execute(
+        "SELECT email, stripe_customer_id, is_verified FROM users WHERE id = %s",
+        (request.user_id,),
+    )
     user = cur.fetchone()
     if not user:
         return jsonify({"error": "User not found"}), 404
+    if not user["is_verified"]:
+        return jsonify({
+            "error": "Verify your email before upgrading to Premium.",
+            "code": "EMAIL_NOT_VERIFIED",
+        }), 403
 
     try:
         customer_id = user["stripe_customer_id"]

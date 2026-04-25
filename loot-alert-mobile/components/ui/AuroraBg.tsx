@@ -1,29 +1,21 @@
 /**
- * Aurora background with agar.io-style physics.
+ * Aurora background v4 — water-drop blobs with elastic collisions and merge.
  *
- * Single-loop 60 fps frame callback on the UI thread (react-native-reanimated).
- * State (position, velocity, radius) lives in a single shared array of objects.
- * We mutate it in place inside runOnUI and also re-read it with useDerivedValue
- * per-blob to drive transforms (no React re-renders per frame).
- *
- * Features:
- *  - Drag a blob to fling it with momentum – it NEVER snaps back home.
- *  - Double tap splits a blob into two smaller ones travelling apart,
- *    like ejecting mass in agar.io.
- *  - Ball-to-ball elastic collisions with mass proportional to r^2.
- *  - Soft gravity pulls blobs back toward their home drift point so they
- *    don't drift off-screen forever, but only gently (feels floaty).
+ * - Each blob has its own pan gesture detector (independently draggable)
+ * - Soft water-drop deformation: scaleX/scaleY follows velocity direction
+ * - Edge-based circle collision (proper r1 + r2 separation)
+ * - High-speed collisions merge blobs into a bigger one with mixed color
+ * - No snap-back home (blobs keep momentum, just gentle damping)
  */
 
 import { View, StyleSheet, Dimensions } from "react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   useFrameCallback,
   runOnJS,
-  runOnUI,
 } from "react-native-reanimated";
 import { Colors } from "../../constants/colors";
 
@@ -31,118 +23,171 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
 
 interface BlobState {
   id: number;
-  x: number;
+  x: number;          // top-left of bounding box
   y: number;
   vx: number;
   vy: number;
-  r: number;
-  homeX: number;
-  homeY: number;
+  r: number;          // bounding box size (visual diameter)
   color: string;
   opacity: number;
-  draggedBy: number; // timestamp, 0 if free
+  draggedBy: number;  // 1 = being dragged, 0 = free
+  alive: number;      // 1 = present, 0 = absorbed (skip render)
 }
+
+const MERGE_VELOCITY = 6;     // |v| above which collision absorbs smaller blob
+const MIN_BLOB_R = 90;
+const MAX_BLOB_R = 350;
+const MAX_BLOBS = 10;
 
 let nextId = 1;
 
-const INITIAL: BlobState[] = [
-  {
-    id: nextId++,
-    x: 40, y: 40, vx: 0.6, vy: 0.2, r: 120,
-    homeX: 40, homeY: 40, color: Colors.violet, opacity: 0.28, draggedBy: 0,
-  },
-  {
-    id: nextId++,
-    x: SCREEN_W - 160, y: SCREEN_H * 0.28, vx: -0.5, vy: 0.3, r: 110,
-    homeX: SCREEN_W - 160, homeY: SCREEN_H * 0.28, color: Colors.fuchsia, opacity: 0.22, draggedBy: 0,
-  },
-  {
-    id: nextId++,
-    x: 20, y: SCREEN_H * 0.6, vx: 0.3, vy: -0.4, r: 100,
-    homeX: 20, homeY: SCREEN_H * 0.6, color: Colors.indigo, opacity: 0.2, draggedBy: 0,
-  },
-];
+function initialBlobs(): BlobState[] {
+  return [
+    {
+      id: nextId++, x: 30, y: 60, vx: 0.4, vy: 0.2, r: 200,
+      color: Colors.violet, opacity: 0.32, draggedBy: 0, alive: 1,
+    },
+    {
+      id: nextId++, x: SCREEN_W - 230, y: SCREEN_H * 0.28, vx: -0.5, vy: 0.3, r: 180,
+      color: Colors.fuchsia, opacity: 0.28, draggedBy: 0, alive: 1,
+    },
+    {
+      id: nextId++, x: 40, y: SCREEN_H * 0.6, vx: 0.3, vy: -0.4, r: 170,
+      color: Colors.indigo, opacity: 0.26, draggedBy: 0, alive: 1,
+    },
+  ];
+}
 
-function clamp(v: number, lo: number, hi: number) {
+// Mix two RGB colors (hex strings) weighted by mass
+function mixColors(a: string, b: string, weightA: number, weightB: number): string {
   "worklet";
-  return v < lo ? lo : v > hi ? hi : v;
+  const parse = (c: string) => {
+    if (c.startsWith("#")) {
+      const v = parseInt(c.slice(1), 16);
+      return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
+    }
+    return [124, 58, 237];
+  };
+  const [ar, ag, ab] = parse(a);
+  const [br, bg, bb] = parse(b);
+  const total = weightA + weightB;
+  const r = Math.round((ar * weightA + br * weightB) / total);
+  const g = Math.round((ag * weightA + bg * weightB) / total);
+  const bl = Math.round((ab * weightA + bb * weightB) / total);
+  return "#" + ((r << 16) | (g << 8) | bl).toString(16).padStart(6, "0");
 }
 
 export function AuroraBg() {
-  // blobs shared array — single source of truth on UI thread
-  const blobs = useSharedValue<BlobState[]>(INITIAL);
-  // signal for JS to re-render wrapper when count changes (split)
-  const [version, setVersion] = useState(0);
+  const blobs = useSharedValue<BlobState[]>(initialBlobs());
+  const [ids, setIds] = useState<number[]>(() => blobs.value.map((b) => b.id));
 
-  // Per-blob transforms – created once per count
-  const current = blobs.value;
+  // Sync JS id list with shared value when blobs are created/destroyed
+  useEffect(() => {
+    const t = setInterval(() => {
+      const live = blobs.value.filter((b) => b.alive).map((b) => b.id);
+      if (live.length !== ids.length || live.some((id, i) => id !== ids[i])) {
+        setIds(live);
+      }
+    }, 200);
+    return () => clearInterval(t);
+  }, [ids]);
 
-  // physics step
+  // Physics tick on UI thread
   useFrameCallback((frame) => {
     "worklet";
-    const dt = Math.min(frame.timeSincePreviousFrame ?? 16, 40) / 16; // normalize to ~60fps step
+    const dt = Math.min(frame.timeSincePreviousFrame ?? 16, 40) / 16;
     const arr = blobs.value;
-    const n = arr.length;
-    const next = arr.slice();
+    const next: BlobState[] = arr.map((b) => ({ ...b }));
+    const n = next.length;
 
-    // --- Integrate motion + soft home-return + edge bounce ---
+    // 1) Integrate position + velocity
     for (let i = 0; i < n; i++) {
-      const b = { ...next[i] };
+      const b = next[i];
+      if (!b.alive) continue;
+
       if (b.draggedBy === 0) {
-        // gentle pull toward home (extremely soft)
-        const dx = b.homeX - b.x;
-        const dy = b.homeY - b.y;
-        b.vx += dx * 0.00006 * dt;
-        b.vy += dy * 0.00006 * dt;
-        // damping
-        b.vx *= 0.995;
-        b.vy *= 0.995;
+        // very gentle damping (no return-home spring at all)
+        b.vx *= 0.997;
+        b.vy *= 0.997;
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+
+        // bounce off screen edges with ~70% energy retention
+        if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * 0.7; }
+        if (b.x + b.r > SCREEN_W) { b.x = SCREEN_W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
+        if (b.y < 0) { b.y = 0; b.vy = Math.abs(b.vy) * 0.7; }
+        if (b.y + b.r > SCREEN_H) { b.y = SCREEN_H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
       }
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
-
-      // bounce off screen edges (treat blob edge, not center)
-      if (b.x < -b.r * 0.5) { b.x = -b.r * 0.5; b.vx = Math.abs(b.vx) * 0.6; }
-      if (b.x + b.r > SCREEN_W + b.r * 0.5) { b.x = SCREEN_W - b.r * 0.5; b.vx = -Math.abs(b.vx) * 0.6; }
-      if (b.y < -b.r * 0.5) { b.y = -b.r * 0.5; b.vy = Math.abs(b.vy) * 0.6; }
-      if (b.y + b.r > SCREEN_H + b.r * 0.5) { b.y = SCREEN_H - b.r * 0.5; b.vy = -Math.abs(b.vy) * 0.6; }
-
-      next[i] = b;
     }
 
-    // --- Ball-to-ball elastic collisions ---
+    // 2) Edge-based collisions and merge
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const a = next[i];
         const c = next[j];
-        const cx = a.x + a.r / 2;
-        const cy = a.y + a.r / 2;
-        const dx = (c.x + c.r / 2) - cx;
-        const dy = (c.y + c.r / 2) - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        // effective radius for collision — use half of drawn size (the dense core)
-        const rA = a.r * 0.45;
-        const rB = c.r * 0.45;
-        const minDist = rA + rB;
-        if (dist > 0 && dist < minDist) {
-          // separate to remove overlap
-          const overlap = (minDist - dist) * 0.5;
-          const nxv = dx / dist;
-          const nyv = dy / dist;
-          next[i] = { ...a, x: a.x - nxv * overlap, y: a.y - nyv * overlap };
-          next[j] = { ...c, x: c.x + nxv * overlap, y: c.y + nyv * overlap };
+        if (!a.alive || !c.alive) continue;
 
-          // elastic collision response, mass = r^2
-          const mA = rA * rA;
-          const mB = rB * rB;
-          const an = a.vx * nxv + a.vy * nyv;
-          const bn = c.vx * nxv + c.vy * nyv;
-          if (an - bn > 0) continue; // moving apart already
-          const p = (2 * (an - bn)) / (mA + mB);
-          next[i].vx = a.vx - p * mB * nxv;
-          next[i].vy = a.vy - p * mB * nyv;
-          next[j].vx = c.vx + p * mA * nxv;
-          next[j].vy = c.vy + p * mA * nyv;
+        // True edge collision: use full visual radius
+        const rA = a.r * 0.5;
+        const rB = c.r * 0.5;
+        const acx = a.x + rA;
+        const acy = a.y + rA;
+        const ccx = c.x + rB;
+        const ccy = c.y + rB;
+        const dx = ccx - acx;
+        const dy = ccy - acy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const minDist = rA + rB;
+
+        if (dist > 0 && dist < minDist) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          // Approach speed along collision normal
+          const an = a.vx * nx + a.vy * ny;
+          const bn = c.vx * nx + c.vy * ny;
+          const approach = an - bn;
+
+          // MERGE if collision is energetic enough and neither is being dragged
+          if (
+            approach > MERGE_VELOCITY &&
+            a.draggedBy === 0 &&
+            c.draggedBy === 0 &&
+            (a.r + c.r) < MAX_BLOB_R * 1.5
+          ) {
+            // bigger absorbs smaller
+            const big = a.r >= c.r ? a : c;
+            const small = a.r >= c.r ? c : a;
+            const mA = big.r * big.r;
+            const mB = small.r * small.r;
+            // new area = sum of areas → r = sqrt(rA^2 + rB^2)
+            big.r = Math.min(MAX_BLOB_R, Math.sqrt(mA + mB));
+            big.color = mixColors(big.color, small.color, mA, mB);
+            big.opacity = Math.min(0.4, (big.opacity * mA + small.opacity * mB) / (mA + mB));
+            // momentum conservation
+            big.vx = (big.vx * mA + small.vx * mB) / (mA + mB);
+            big.vy = (big.vy * mA + small.vy * mB) / (mA + mB);
+            small.alive = 0;
+            continue;
+          }
+
+          // Otherwise: regular elastic separation + bounce
+          const overlap = (minDist - dist) * 0.5;
+          a.x -= nx * overlap;
+          a.y -= ny * overlap;
+          c.x += nx * overlap;
+          c.y += ny * overlap;
+
+          if (approach > 0) {
+            // mass = r^2 (2D circle area)
+            const mA = a.r * a.r;
+            const mB = c.r * c.r;
+            const p = (2 * approach) / (mA + mB);
+            a.vx -= p * mB * nx;
+            a.vy -= p * mB * ny;
+            c.vx += p * mA * nx;
+            c.vy += p * mA * ny;
+          }
         }
       }
     }
@@ -150,63 +195,35 @@ export function AuroraBg() {
     blobs.value = next;
   });
 
-  const splitBlob = useCallback((id: number) => {
-    runOnUI((bid: number) => {
-      "worklet";
-      const arr = blobs.value;
-      const idx = arr.findIndex((b) => b.id === bid);
-      if (idx < 0) return;
-      const src = arr[idx];
-      if (src.r < 55) return; // too small to split further
-
-      const newR = src.r * 0.7;
-      const ejectSpeed = 5;
-      const angle = Math.random() * Math.PI * 2;
-      const vxOff = Math.cos(angle) * ejectSpeed;
-      const vyOff = Math.sin(angle) * ejectSpeed;
-
-      const a = {
-        ...src,
-        r: newR,
-        vx: src.vx + vxOff,
-        vy: src.vy + vyOff,
-      };
-      const b = {
-        ...src,
-        id: -Math.floor(Math.random() * 1_000_000_000),
-        r: newR,
-        vx: src.vx - vxOff,
-        vy: src.vy - vyOff,
-        opacity: Math.max(0.1, src.opacity * 0.85),
-      };
-      const next = arr.slice();
-      next[idx] = a;
-      next.push(b);
-      if (next.length > 10) next.shift();
-      blobs.value = next;
-      runOnJS(setVersion)(Date.now());
-    })(id);
+  const respawnBlob = useCallback(() => {
+    const arr = blobs.value;
+    const live = arr.filter((b) => b.alive);
+    if (live.length >= 3) return; // keep at least 3 visible
+    arr.push({
+      id: nextId++,
+      x: Math.random() * (SCREEN_W - 200),
+      y: Math.random() * (SCREEN_H - 200),
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      r: 150 + Math.random() * 50,
+      color: [Colors.violet, Colors.fuchsia, Colors.indigo][Math.floor(Math.random() * 3)],
+      opacity: 0.25,
+      draggedBy: 0,
+      alive: 1,
+    });
+    blobs.value = [...arr];
   }, []);
 
-  // JS id list kept in sync with shared value (only changes on split)
-  const [ids, setIds] = useState<number[]>(INITIAL.map((b) => b.id));
+  // Auto-respawn check every 3s after merges
   useEffect(() => {
-    const t = setInterval(() => {
-      const currentIds = blobs.value.map((b) => b.id);
-      if (
-        currentIds.length !== ids.length ||
-        currentIds.some((id, i) => id !== ids[i])
-      ) {
-        setIds(currentIds);
-      }
-    }, 250);
+    const t = setInterval(respawnBlob, 3000);
     return () => clearInterval(t);
-  }, [ids]);
+  }, [respawnBlob]);
 
   return (
     <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-      {ids.map((id, i) => (
-        <BlobView key={id} index={i} id={id} blobs={blobs} onSplit={splitBlob} />
+      {ids.map((id) => (
+        <Blob key={id} id={id} blobs={blobs} />
       ))}
     </View>
   );
@@ -214,18 +231,23 @@ export function AuroraBg() {
 
 interface BlobViewProps {
   id: number;
-  index: number;
   blobs: Animated.SharedValue<BlobState[]>;
-  onSplit: (id: number) => void;
 }
 
-function BlobView({ id, index, blobs, onSplit }: BlobViewProps) {
-  const style = useAnimatedStyle(() => {
+function Blob({ id, blobs }: BlobViewProps) {
+  const animStyle = useAnimatedStyle(() => {
     const arr = blobs.value;
-    const b = arr[index] ?? arr.find((x) => x.id === id);
-    if (!b) return { opacity: 0 };
+    const b = arr.find((x) => x.id === id);
+    if (!b || !b.alive) return { opacity: 0, width: 0, height: 0 };
+
+    // Water-drop deformation: stretch in velocity direction, squash perpendicular
+    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    const stretch = b.draggedBy ? 1.1 : Math.min(1.25, 1 + speed * 0.025);
+    const squash = b.draggedBy ? 0.92 : Math.max(0.85, 1 - speed * 0.02);
+    const angle = Math.atan2(b.vy, b.vx);
+
     return {
-      position: "absolute",
+      position: "absolute" as const,
       left: 0,
       top: 0,
       width: b.r,
@@ -233,11 +255,16 @@ function BlobView({ id, index, blobs, onSplit }: BlobViewProps) {
       borderRadius: b.r / 2,
       backgroundColor: b.color,
       opacity: b.opacity,
-      transform: [{ translateX: b.x }, { translateY: b.y }],
+      transform: [
+        { translateX: b.x },
+        { translateY: b.y },
+        { rotate: `${angle}rad` },
+        { scaleX: stretch },
+        { scaleY: squash },
+        { rotate: `${-angle}rad` },
+      ],
     };
   });
-
-  const startPos = useRef({ x: 0, y: 0 });
 
   const pan = Gesture.Pan()
     .onStart(() => {
@@ -255,7 +282,13 @@ function BlobView({ id, index, blobs, onSplit }: BlobViewProps) {
       const idx = arr.findIndex((b) => b.id === id);
       if (idx < 0) return;
       const next = arr.slice();
-      next[idx] = { ...next[idx], x: next[idx].x + e.changeX, y: next[idx].y + e.changeY };
+      next[idx] = {
+        ...next[idx],
+        x: next[idx].x + e.changeX,
+        y: next[idx].y + e.changeY,
+        vx: e.changeX * 0.6,
+        vy: e.changeY * 0.6,
+      };
       blobs.value = next;
     })
     .onEnd((e) => {
@@ -267,22 +300,16 @@ function BlobView({ id, index, blobs, onSplit }: BlobViewProps) {
       next[idx] = {
         ...next[idx],
         draggedBy: 0,
-        vx: e.velocityX / 60,
-        vy: e.velocityY / 60,
+        // fling preserves velocity scaled down
+        vx: e.velocityX / 80,
+        vy: e.velocityY / 80,
       };
       blobs.value = next;
     });
 
-  const doubleTap = Gesture.Tap().numberOfTaps(2).onEnd(() => {
-    "worklet";
-    runOnJS(onSplit)(id);
-  });
-
-  const gesture = Gesture.Exclusive(doubleTap, pan);
-
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View style={style} />
+    <GestureDetector gesture={pan}>
+      <Animated.View style={animStyle} />
     </GestureDetector>
   );
 }

@@ -54,7 +54,7 @@ def create_alert():
     color = data.get("color")
     max_price = data.get("max_price")
     min_price = data.get("min_price", 0)
-    sources = data.get("sources", ["olx", "vinted", "allegro"])
+    sources = data.get("sources", ["olx", "ebay", "allegro", "reverb", "discogs"])
     condition = data.get("condition", "any")
 
     cur = db.cursor()

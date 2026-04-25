@@ -152,7 +152,26 @@ export default function SettingsScreen() {
             </Text>
           </View>
           {user?.plan === "free" ? (
-            <TouchableOpacity style={styles.upgradeBtn} onPress={() => setShowPricing(true)}>
+            <TouchableOpacity
+              style={styles.upgradeBtn}
+              onPress={() => {
+                if (!user?.is_verified) {
+                  Alert.alert(
+                    "Verify your email",
+                    "Premium plans are available only to verified accounts. Verify your email first.",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Verify now",
+                        onPress: () => router.push({ pathname: "/(auth)/verify", params: { email: user.email } }),
+                      },
+                    ]
+                  );
+                  return;
+                }
+                setShowPricing(true);
+              }}
+            >
               <Feather name="zap" size={14} color="#fff" />
               <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
             </TouchableOpacity>

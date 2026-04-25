@@ -14,7 +14,6 @@ const SOURCES = [
   { id: "allegro", label: "Allegro", desc: "Biggest marketplace in Poland" },
   { id: "reverb", label: "Reverb", desc: "Musical instruments worldwide" },
   { id: "discogs", label: "Discogs", desc: "Vinyl, CDs, music collectibles" },
-  { id: "vinted", label: "Vinted", desc: "Fashion (requires premium scraper)" },
 ];
 
 export function Step3Sources({ sources, onToggleSource }: Props) {

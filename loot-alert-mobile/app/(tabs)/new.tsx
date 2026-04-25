@@ -28,7 +28,7 @@ export default function NewAlertScreen() {
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [condition, setCondition] = useState<"any" | "new" | "used">("any");
-  const [sources, setSources] = useState(["olx", "vinted", "allegro"]);
+  const [sources, setSources] = useState(["olx", "ebay", "allegro", "reverb", "discogs"]);
 
   function toggleSource(source: string) {
     setSources((prev) =>

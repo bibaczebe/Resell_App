@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, Modal, ScrollView } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, Modal, ScrollView, Alert } from "react-native";
+import { router } from "expo-router";
 import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../constants/colors";
@@ -46,7 +47,25 @@ export function PricingSheet({ visible, onClose }: Props) {
         onClose();
       }
     } catch (e) {
-      alert(e instanceof Error ? e.message : "Failed to open checkout");
+      const msg = e instanceof Error ? e.message : "Failed to open checkout";
+      if (msg.toLowerCase().includes("verify")) {
+        Alert.alert(
+          "Verify your email",
+          "Premium plans are available only to verified accounts.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Verify now",
+              onPress: () => {
+                onClose();
+                router.push("/(auth)/verify");
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Error", msg);
+      }
     } finally {
       setOpening(null);
     }
