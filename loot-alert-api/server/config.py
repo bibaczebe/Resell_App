@@ -37,8 +37,11 @@ ALLEGRO_CLIENT_SECRET = os.environ.get("ALLEGRO_CLIENT_SECRET", "")
 ALLEGRO_TOKEN_URL = "https://allegro.pl/auth/oauth/token"
 ALLEGRO_API_BASE = "https://api.allegro.pl"
 
-SCRAPER_API_KEY = os.environ.get("SCRAPER_API_KEY", "")
+SCRAPER_API_KEY = _clean_env("SCRAPER_API_KEY")
 SCRAPER_API_BASE = "http://api.scraperapi.com/"
+# Vinted is a "protected domain" – ScraperAPI charges 10 credits per request
+# and only succeeds with premium=true. Toggle once you upgrade ScraperAPI plan.
+SCRAPER_API_PREMIUM = _clean_env("SCRAPER_API_PREMIUM", "false").lower() == "true"
 
 RESEND_API_KEY = _clean_env("RESEND_API_KEY")
 RESEND_FROM_EMAIL = _clean_env("RESEND_FROM_EMAIL", "LootAlert <onboarding@resend.dev>")

@@ -2,7 +2,7 @@ import requests
 import urllib.parse
 import logging
 from server.scrapers import Listing, random_headers
-from server.config import SCRAPER_API_KEY
+from server.config import SCRAPER_API_KEY, SCRAPER_API_PREMIUM
 
 logger = logging.getLogger(__name__)
 
@@ -16,15 +16,23 @@ CONDITION_MAP = {
 
 
 def _via_scraper(target_url: str) -> str:
-    if SCRAPER_API_KEY:
-        # country_code=pl routes through Polish IPs (Vinted is geo-restricted)
-        # render=false skips JS rendering (faster, ~5-15s instead of 30+)
-        return (
-            f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}"
-            f"&url={urllib.parse.quote(target_url, safe='')}"
-            f"&country_code=pl&render=false"
-        )
-    return target_url
+    if not SCRAPER_API_KEY:
+        return target_url
+    # Vinted is a protected domain (Cloudflare/DataDome) – we need premium proxies
+    # which cost 10 credits per request instead of 1. Toggle SCRAPER_API_PREMIUM=true
+    # in Railway once you upgrade your ScraperAPI plan.
+    parts = [
+        f"api_key={SCRAPER_API_KEY}",
+        f"url={urllib.parse.quote(target_url, safe='')}",
+        "country_code=pl",
+    ]
+    if SCRAPER_API_PREMIUM:
+        parts.append("premium=true")
+    else:
+        # Standard plan: try without premium – will likely return 500 with
+        # "Protected domains may require premium=true" but worth trying once.
+        parts.append("render=false")
+    return "http://api.scraperapi.com/?" + "&".join(parts)
 
 
 def _get_session_cookie() -> dict:
