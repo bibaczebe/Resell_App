@@ -9,9 +9,12 @@ interface Props {
 }
 
 const SOURCES = [
-  { id: "olx", label: "OLX", desc: "Largest classifieds site in Poland" },
-  { id: "vinted", label: "Vinted", desc: "Fashion & second-hand marketplace" },
+  { id: "olx", label: "OLX", desc: "Polish classifieds – everything from cars to clothes" },
+  { id: "ebay", label: "eBay", desc: "Global – US, UK, DE, PL marketplaces" },
   { id: "allegro", label: "Allegro", desc: "Biggest marketplace in Poland" },
+  { id: "reverb", label: "Reverb", desc: "Musical instruments worldwide" },
+  { id: "discogs", label: "Discogs", desc: "Vinyl, CDs, music collectibles" },
+  { id: "vinted", label: "Vinted", desc: "Fashion (requires premium scraper)" },
 ];
 
 export function Step3Sources({ sources, onToggleSource }: Props) {

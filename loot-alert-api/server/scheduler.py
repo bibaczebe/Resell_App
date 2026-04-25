@@ -76,13 +76,15 @@ def _poll_alerts(plan_filter: str):
         logger.error("Scheduler DB error: %s", e)
         return
 
-    from server.scrapers import olx, vinted, allegro, ebay
+    from server.scrapers import olx, vinted, allegro, ebay, reverb, discogs
 
     scraper_map = {
         "olx": olx.search,
         "vinted": vinted.search,
         "allegro": allegro.search,
         "ebay": ebay.search,
+        "reverb": reverb.search,
+        "discogs": discogs.search,
     }
 
     for alert in alerts:
