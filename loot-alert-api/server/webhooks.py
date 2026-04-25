@@ -7,8 +7,13 @@ Flow:
   3. n8n filters results by alert parameters it pulled from /api/webhook/alerts.
   4. n8n POSTs matched listings to /api/webhook/n8n/listings.
   5. Backend deduplicates via Redis, triggers push notifications.
+
+Also hosts the eBay Marketplace Account Deletion compliance endpoint
+(required to enable production keyset).
 """
 
+import os
+import hashlib
 import logging
 from flask import Blueprint, request, jsonify
 from server.db import get_db, get_redis
@@ -145,4 +150,79 @@ def receive_listings():
         "received": len(listings),
         "new": new_count,
         "notifications_sent": sent_count,
+    }), 200
+
+
+# ----------------------------------------------------------------------------
+# eBay Marketplace Account Deletion / Closure Notifications
+# Docs: https://developer.ebay.com/marketplace-account-deletion
+#
+# eBay calls our endpoint on TWO occasions:
+# 1. Verification – GET with ?challenge_code=<code>. We must respond with JSON
+#    {"challengeResponse": SHA256(challenge + verification_token + endpoint_url)}
+#
+# 2. Notification – POST with notification body when an eBay user deletes their
+#    account. We must respond 200 within 3 seconds.
+#
+# The verification token is a 32-80 char string we choose; same value goes in
+# the eBay developer portal.
+# ----------------------------------------------------------------------------
+
+EBAY_VERIFICATION_TOKEN = os.environ.get(
+    "EBAY_VERIFICATION_TOKEN",
+    "lootalert-ebay-deletion-2026-verification-token",
+).strip()
+EBAY_DELETION_ENDPOINT_URL = os.environ.get(
+    "EBAY_DELETION_ENDPOINT_URL",
+    "https://resellapp-production.up.railway.app/api/webhook/ebay/account-deletion",
+).strip()
+
+
+@webhooks_bp.route("/api/webhook/ebay/account-deletion", methods=["GET"])
+def ebay_account_deletion_verify():
+    challenge_code = request.args.get("challenge_code", "")
+    if not challenge_code:
+        return jsonify({"error": "missing challenge_code"}), 400
+
+    m = hashlib.sha256()
+    m.update(challenge_code.encode("utf-8"))
+    m.update(EBAY_VERIFICATION_TOKEN.encode("utf-8"))
+    m.update(EBAY_DELETION_ENDPOINT_URL.encode("utf-8"))
+    challenge_response = m.hexdigest()
+
+    logger.info("eBay deletion verification: code=%s", challenge_code[:8])
+    return jsonify({"challengeResponse": challenge_response}), 200, {
+        "Content-Type": "application/json",
+    }
+
+
+@webhooks_bp.route("/api/webhook/ebay/account-deletion", methods=["POST"])
+def ebay_account_deletion_notify():
+    """eBay sends a notification when one of THEIR users deletes their account.
+    LootAlert does not store eBay user PII (we only fetch public listings),
+    so we just acknowledge and log. Must respond 200 within 3 seconds.
+    """
+    payload = request.get_json(silent=True) or {}
+    notification = payload.get("notification") or {}
+    user_data = notification.get("data") or {}
+    user_id = user_data.get("userId") or user_data.get("username")
+    logger.info("eBay account deletion notification received for user=%s", user_id)
+    # Optional: clean any cached eBay data here. We don't store any.
+    return jsonify({"status": "acknowledged"}), 200
+
+
+@webhooks_bp.route("/api/webhook/ebay/config", methods=["GET"])
+def ebay_deletion_config():
+    """Helper – returns the verification token + endpoint URL to paste into
+    the eBay developer portal. Public on purpose – the token is non-secret.
+    """
+    return jsonify({
+        "endpoint_url": EBAY_DELETION_ENDPOINT_URL,
+        "verification_token": EBAY_VERIFICATION_TOKEN,
+        "instructions": (
+            "Paste endpoint_url into 'Marketplace account deletion notification "
+            "endpoint' field, and verification_token into the verification token "
+            "field, then click Save. eBay will call our endpoint with a "
+            "challenge_code; we respond with SHA256(code + token + url)."
+        ),
     }), 200
