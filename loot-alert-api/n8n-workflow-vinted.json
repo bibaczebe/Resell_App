@@ -5,10 +5,7 @@
       "parameters": {
         "rule": {
           "interval": [
-            {
-              "field": "minutes",
-              "minutesInterval": 2
-            }
+            { "field": "minutes", "minutesInterval": 2 }
           ]
         }
       },
@@ -24,10 +21,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "X-Webhook-Secret",
-              "value": "lootalert-n8n-2026"
-            }
+            { "name": "X-Webhook-Secret", "value": "lootalert-n8n-2026" }
           ]
         },
         "options": {}
@@ -51,19 +45,11 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "conditions": [
-            {
-              "leftValue": "={{ $json.sources }}",
-              "rightValue": "vinted",
-              "operator": { "type": "array", "operation": "contains" }
-            }
-          ]
-        }
+        "jsCode": "// Filter: keep only alerts that target vinted\nconst out = [];\nfor (const item of $input.all()) {\n  const sources = item.json.sources || [];\n  if (Array.isArray(sources) && sources.includes('vinted')) {\n    out.push(item);\n  }\n}\nreturn out;"
       },
       "id": "filter-vinted",
       "name": "Only Vinted Alerts",
-      "type": "n8n-nodes-base.filter",
+      "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [900, 300]
     },
@@ -90,7 +76,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.item.json.items || [];\nconst alert = $('Filter Vinted Alerts').item.json;\nconst listings = items.map(i => ({\n  id: String(i.id),\n  title: i.title || '',\n  price: parseFloat((i.price && i.price.amount) || 0) || null,\n  url: i.url?.startsWith('http') ? i.url : 'https://www.vinted.pl' + (i.url || ''),\n  image_url: (i.photo && i.photo.url) || null,\n  source: 'vinted'\n}));\nreturn [{ json: { alert_id: alert.id, listings } }];"
+        "jsCode": "// Convert Vinted response to LootAlert listing schema, keyed by alert\nconst alertItem = $('Only Vinted Alerts').first();\nconst alert = alertItem ? alertItem.json : {};\nconst items = ($input.first()?.json?.items) || [];\nconst listings = items.map(i => ({\n  id: String(i.id || ''),\n  title: i.title || '',\n  price: parseFloat((i.price && i.price.amount) || 0) || null,\n  url: (i.url || '').startsWith('http') ? i.url : 'https://www.vinted.pl' + (i.url || ''),\n  image_url: (i.photo && i.photo.url) || null,\n  source: 'vinted'\n})).filter(l => l.id);\nreturn [{ json: { alert_id: alert.id, listings } }];"
       },
       "id": "format-listings",
       "name": "Format for LootAlert",
@@ -111,6 +97,7 @@
         },
         "sendBody": true,
         "contentType": "json",
+        "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($json) }}",
         "options": {}
       },
@@ -141,7 +128,5 @@
       "main": [[{ "node": "POST to LootAlert", "type": "main", "index": 0 }]]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  }
+  "settings": { "executionOrder": "v1" }
 }
