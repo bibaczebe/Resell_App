@@ -155,6 +155,128 @@ def create_app() -> Flask:
 
         return jsonify(results), 200
 
+    @app.route("/api/debug/alert-matches/<int:alert_id>", methods=["GET"])
+    def debug_alert_matches(alert_id: int):
+        """Run current-matches logic without auth to diagnose '0 Matches' bug."""
+        import psycopg2
+        import psycopg2.extras
+        from server.config import DATABASE_URL
+        from server.scrapers import olx, vinted, allegro, ebay, reverb, discogs
+
+        scraper_map = {
+            "olx": olx.search, "vinted": vinted.search, "allegro": allegro.search,
+            "ebay": ebay.search, "reverb": reverb.search, "discogs": discogs.search,
+        }
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT id, user_id, keywords, size, color, max_price, min_price, sources, condition FROM alerts WHERE id = %s",
+            (alert_id,),
+        )
+        alert = cur.fetchone()
+        conn.close()
+        if not alert:
+            return jsonify({"error": "alert not found"}), 404
+
+        report = {
+            "alert": dict(alert),
+            "scraping": {},
+            "total_after_filter": 0,
+        }
+        # serialize Decimal
+        if report["alert"].get("max_price"):
+            report["alert"]["max_price"] = float(report["alert"]["max_price"])
+        if report["alert"].get("min_price"):
+            report["alert"]["min_price"] = float(report["alert"]["min_price"])
+
+        all_results = []
+        for source in (alert["sources"] or []):
+            fn = scraper_map.get(source)
+            if not fn:
+                report["scraping"][source] = {"error": "unknown source"}
+                continue
+            try:
+                items = fn(
+                    keywords=alert["keywords"],
+                    max_price=float(alert["max_price"]) if alert["max_price"] else None,
+                    min_price=float(alert["min_price"] or 0),
+                    condition=alert["condition"] or "any",
+                    limit=10,
+                )
+                report["scraping"][source] = {
+                    "raw_count": len(items),
+                    "first_titles": [i.title[:60] for i in items[:3]],
+                }
+                for it in items:
+                    if alert["size"] and alert["size"].lower() not in it.title.lower():
+                        continue
+                    if alert["color"] and alert["color"].lower() not in it.title.lower():
+                        continue
+                    all_results.append(it)
+            except Exception as e:
+                report["scraping"][source] = {"error": f"{type(e).__name__}: {e}"}
+
+        report["total_after_filter"] = len(all_results)
+        return jsonify(report), 200
+
+    @app.route("/api/debug/push-state/<int:user_id>", methods=["GET"])
+    def debug_push_state(user_id: int):
+        """Diagnose why push notifications aren't reaching a user."""
+        import psycopg2
+        import psycopg2.extras
+        from server.config import DATABASE_URL
+
+        conn = psycopg2.connect(DATABASE_URL, cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor()
+
+        cur.execute("SELECT id, email, plan FROM users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            conn.close()
+            return jsonify({"error": "user not found"}), 404
+
+        cur.execute("SELECT token, platform, created_at FROM push_tokens WHERE user_id = %s", (user_id,))
+        tokens = []
+        for r in cur.fetchall():
+            tokens.append({
+                "token_prefix": r["token"][:25] + "..." if len(r["token"]) > 25 else r["token"],
+                "platform": r["platform"],
+                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+            })
+
+        cur.execute(
+            """SELECT alert_id, listing_title, source, sent_at FROM notification_log
+               WHERE user_id = %s ORDER BY sent_at DESC LIMIT 10""",
+            (user_id,),
+        )
+        recent_notifs = []
+        for r in cur.fetchall():
+            recent_notifs.append({
+                "alert_id": r["alert_id"],
+                "title": (r["listing_title"] or "")[:60],
+                "source": r["source"],
+                "sent_at": r["sent_at"].isoformat() if r["sent_at"] else None,
+            })
+
+        # Redis dedup cache count
+        from server.db import get_redis
+        try:
+            redis_client = get_redis()
+            dedup_keys = list(redis_client.scan_iter(match=f"seen:*:*:*", count=100))
+            dedup_count = len(dedup_keys)
+        except Exception as e:
+            dedup_count = f"error: {e}"
+
+        conn.close()
+        return jsonify({
+            "user": dict(user),
+            "push_tokens_registered": len(tokens),
+            "push_tokens": tokens,
+            "recent_notifications_sent": recent_notifs,
+            "redis_dedup_keys_total": dedup_count,
+        }), 200
+
     @app.route("/api/debug/version", methods=["GET"])
     def debug_version():
         import os

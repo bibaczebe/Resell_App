@@ -149,6 +149,74 @@ def alert_history(alert_id: int):
     return jsonify([dict(r) for r in cur.fetchall()]), 200
 
 
+@alerts_bp.route("/api/alerts/price-estimate", methods=["GET"])
+@require_auth
+def price_estimate():
+    """Quick stats on what a keyword typically costs across our sources.
+    Helps deal hunters see avg/median to decide a sane max_price.
+    Returns: { count, avg, median, min, max, currency, samples }
+    """
+    from server.scrapers import olx, ebay
+    keywords = (request.args.get("q") or "").strip()
+    if not keywords:
+        return jsonify({"error": "q parameter required"}), 400
+
+    # Use OLX (PLN) for the primary estimate; fall back to eBay USD if no PLN data
+    prices: list[float] = []
+    samples: list[dict] = []
+    currency = "PLN"
+
+    try:
+        olx_items = olx.search(keywords=keywords, limit=30)
+        for it in olx_items:
+            if it.price and it.price > 5:
+                prices.append(float(it.price))
+                samples.append({"title": it.title, "price": float(it.price), "source": "olx"})
+    except Exception:
+        pass
+
+    if len(prices) < 3:
+        # supplement with eBay (in USD, mark accordingly)
+        try:
+            ebay_items = ebay.search(keywords=keywords, limit=20)
+            ebay_prices = []
+            for it in ebay_items:
+                if it.price and it.price > 5:
+                    ebay_prices.append(float(it.price))
+                    samples.append({"title": it.title, "price": float(it.price), "source": it.source, "currency": it.currency})
+            if not prices and ebay_prices:
+                prices = ebay_prices
+                currency = "USD"
+        except Exception:
+            pass
+
+    if not prices:
+        return jsonify({
+            "count": 0,
+            "currency": currency,
+            "message": "No price data found for this query.",
+        }), 200
+
+    prices.sort()
+    n = len(prices)
+    avg = sum(prices) / n
+    median = prices[n // 2] if n % 2 == 1 else (prices[n // 2 - 1] + prices[n // 2]) / 2
+
+    # Suggest a "good deal" threshold = 30% below median
+    good_deal_below = round(median * 0.7)
+
+    return jsonify({
+        "count": n,
+        "currency": currency,
+        "avg": round(avg, 2),
+        "median": round(median, 2),
+        "min": round(prices[0], 2),
+        "max": round(prices[-1], 2),
+        "good_deal_threshold": good_deal_below,
+        "samples": samples[:5],
+    }), 200
+
+
 @alerts_bp.route("/api/alerts/<int:alert_id>/current-matches", methods=["GET"])
 @require_auth
 def alert_current_matches(alert_id: int):

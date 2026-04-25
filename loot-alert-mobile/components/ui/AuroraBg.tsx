@@ -42,6 +42,11 @@ interface BlobState {
   opacity: number;
   alive: number;
   draggedBy: number;
+  // Animation phase: 0 = idle, >0 = "merge ripple" countdown frames
+  mergePulse: number;
+  // Phase: >0 = "absorbing" countdown for the smaller blob (animates to nothing)
+  absorbInto: number; // id of target blob; 0 if not absorbing
+  absorbProgress: number; // 0..1
 }
 
 const MERGE_VELOCITY = 5;
@@ -50,7 +55,10 @@ const MAX_BLOB_R = 360;
 let nextId = 1;
 
 function newBlob(x: number, y: number, r: number, color: string, opacity: number, vx = 0, vy = 0): BlobState {
-  return { id: nextId++, x, y, r, color, opacity, vx, vy, alive: 1, draggedBy: 0 };
+  return {
+    id: nextId++, x, y, r, color, opacity, vx, vy, alive: 1, draggedBy: 0,
+    mergePulse: 0, absorbInto: 0, absorbProgress: 0,
+  };
 }
 
 function initialBlobs(): BlobState[] {
@@ -102,7 +110,44 @@ export function AuroraBg() {
 
     for (let i = 0; i < n; i++) {
       const b = next[i];
-      if (!b.alive || b.draggedBy) continue;
+      if (!b.alive) continue;
+
+      // Tick down merge pulse animation
+      if (b.mergePulse > 0) b.mergePulse -= 1;
+
+      // Absorbing animation: blob shrinks and travels toward target
+      if (b.absorbInto !== 0) {
+        const target = next.find((t) => t.id === b.absorbInto && t.alive);
+        if (!target) {
+          b.absorbInto = 0;
+          b.absorbProgress = 0;
+          continue;
+        }
+        b.absorbProgress = Math.min(1, b.absorbProgress + 0.075);
+        // Glide toward target center
+        const tcx = target.x + target.r / 2;
+        const tcy = target.y + target.r / 2;
+        const bcx = b.x + b.r / 2;
+        const bcy = b.y + b.r / 2;
+        const lerp = 0.18;
+        b.x = b.x + (tcx - b.r / 2 - b.x) * lerp;
+        b.y = b.y + (tcy - b.r / 2 - b.y) * lerp;
+        if (b.absorbProgress >= 1) {
+          // Merge happens NOW – payload transferred to target
+          const mA = target.r * target.r;
+          const mB = b.r * b.r;
+          target.r = Math.min(MAX_BLOB_R, Math.sqrt(mA + mB));
+          target.color = mixColors(target.color, b.color, mA, mB);
+          target.opacity = Math.min(0.4, (target.opacity * mA + b.opacity * mB) / (mA + mB));
+          target.vx = (target.vx * mA + b.vx * mB) / (mA + mB);
+          target.vy = (target.vy * mA + b.vy * mB) / (mA + mB);
+          target.mergePulse = 18;
+          b.alive = 0;
+        }
+        continue;
+      }
+
+      if (b.draggedBy) continue;
 
       b.vx *= 0.995;
       b.vy *= 0.995;
@@ -136,17 +181,16 @@ export function AuroraBg() {
           const bn = c.vx * nx + c.vy * ny;
           const approach = an - bn;
 
-          if (approach > MERGE_VELOCITY && !a.draggedBy && !c.draggedBy && (a.r + c.r) < MAX_BLOB_R * 1.5) {
+          if (approach > MERGE_VELOCITY && !a.draggedBy && !c.draggedBy
+              && (a.r + c.r) < MAX_BLOB_R * 1.5
+              && a.absorbInto === 0 && c.absorbInto === 0) {
             const big = a.r >= c.r ? a : c;
             const small = a.r >= c.r ? c : a;
-            const mA = big.r * big.r;
-            const mB = small.r * small.r;
-            big.r = Math.min(MAX_BLOB_R, Math.sqrt(mA + mB));
-            big.color = mixColors(big.color, small.color, mA, mB);
-            big.opacity = Math.min(0.4, (big.opacity * mA + small.opacity * mB) / (mA + mB));
-            big.vx = (big.vx * mA + small.vx * mB) / (mA + mB);
-            big.vy = (big.vy * mA + small.vy * mB) / (mA + mB);
-            small.alive = 0;
+            // Start "absorbing" animation: small shrinks toward big over ~14 frames
+            small.absorbInto = big.id;
+            small.absorbProgress = 0;
+            // Pulse the big one for the same duration
+            big.mergePulse = 14;
             continue;
           }
 
@@ -225,15 +269,36 @@ function Blob({ id, blobs }: BlobProps) {
     };
   });
 
-  // Inner style applies the visual deformation (does not affect hit area)
+  // Inner style applies visual deformation + merge animations
   const visualStyle = useAnimatedStyle(() => {
     const arr = blobs.value;
     const b = arr.find((x) => x.id === id);
     if (!b || !b.alive) return { width: 0, height: 0 };
+
+    // Absorbing: shrink + fade as we glide into target
+    if (b.absorbInto !== 0) {
+      const t = b.absorbProgress; // 0..1
+      const shrink = 1 - t * 0.85;       // shrinks to 15%
+      const fade = 1 - t * 0.7;
+      return {
+        width: "100%" as const,
+        height: "100%" as const,
+        borderRadius: b.r / 2,
+        backgroundColor: b.color,
+        opacity: fade,
+        transform: [{ scale: shrink }],
+      };
+    }
+
     const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
     const stretch = Math.min(1.3, 1 + speed * 0.03);
     const squash = Math.max(0.82, 1 - speed * 0.025);
     const angle = Math.atan2(b.vy, b.vx);
+
+    // Merge pulse: bouncy scale + brightness flash for ~18 frames after absorbing
+    const pulseT = b.mergePulse / 18; // 1 -> 0
+    const pulseScale = pulseT > 0 ? 1 + Math.sin(pulseT * Math.PI) * 0.18 : 1;
+
     return {
       width: "100%" as const,
       height: "100%" as const,
@@ -241,8 +306,8 @@ function Blob({ id, blobs }: BlobProps) {
       backgroundColor: b.color,
       transform: [
         { rotate: `${angle}rad` },
-        { scaleX: stretch },
-        { scaleY: squash },
+        { scaleX: stretch * pulseScale },
+        { scaleY: squash * pulseScale },
         { rotate: `${-angle}rad` },
       ],
     };
