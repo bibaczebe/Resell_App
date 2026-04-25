@@ -8,6 +8,7 @@ import { Colors } from "../../constants/colors";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { AuroraBg } from "../../components/ui/AuroraBg";
 import { api } from "../../lib/api";
+import { formatPrice, formatMaxPrice } from "../../lib/format";
 
 interface Hit {
   listing_url: string;
@@ -21,6 +22,7 @@ interface CurrentMatch {
   id: string;
   title: string;
   price: number | null;
+  currency: string;
   url: string;
   image_url: string | null;
   source: string;
@@ -129,7 +131,7 @@ export default function AlertDetailScreen() {
             </View>
             <View style={styles.divider} />
             <View style={styles.stat}>
-              <Text style={styles.statValue}>{alert.max_price ? `${alert.max_price} zł` : "∞"}</Text>
+              <Text style={styles.statValue}>{formatMaxPrice(alert.max_price)}</Text>
               <Text style={styles.statLabel}>Max price</Text>
             </View>
           </View>
@@ -191,7 +193,7 @@ export default function AlertDetailScreen() {
                     </View>
                     <Text style={styles.hitTitle} numberOfLines={2}>{item.title}</Text>
                     <View style={styles.hitFooter}>
-                      {item.price ? <Text style={styles.hitPrice}>{item.price} zł</Text> : null}
+                      {item.price ? <Text style={styles.hitPrice}>{formatPrice(item.price, item.currency)}</Text> : null}
                       <Feather name="external-link" size={14} color={Colors.textMuted} />
                     </View>
                   </GlassCard>
@@ -233,6 +235,7 @@ export default function AlertDetailScreen() {
                     {item.listing_price ? (
                       <Text style={styles.hitPrice}>{item.listing_price} zł</Text>
                     ) : null}
+                    {/* note: notification_log doesn't yet store currency – history shows zł as approximation */}
                     <Feather name="external-link" size={14} color={Colors.textMuted} />
                   </View>
                 </GlassCard>

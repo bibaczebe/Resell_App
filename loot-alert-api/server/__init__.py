@@ -148,7 +148,7 @@ def create_app() -> Flask:
                 items = module.search(keywords=query, max_price=max_price, limit=5)
                 results["sources"][name] = {
                     "count": len(items),
-                    "sample": [{"title": i.title, "price": i.price, "url": i.url, "id": i.id} for i in items[:3]],
+                    "sample": [{"title": i.title, "price": i.price, "currency": i.currency, "url": i.url, "id": i.id} for i in items[:3]],
                 }
             except Exception as e:
                 results["sources"][name] = {"error": f"{type(e).__name__}: {e}", "trace": traceback.format_exc()}

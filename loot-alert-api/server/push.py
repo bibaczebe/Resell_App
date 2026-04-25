@@ -47,6 +47,34 @@ def register_token():
     return jsonify({"message": "Token registered"}), 200
 
 
+@push_bp.route("/api/push/test", methods=["POST"])
+@require_auth
+def test_push():
+    """Send a test push notification to the authenticated user.
+    Body: { "title"?: str, "body"?: str }"""
+    data = request.get_json(silent=True) or {}
+    title = data.get("title") or "🔔 LootAlert test"
+    body = data.get("body") or "If you see this, push notifications work!"
+
+    db = get_db()
+    tokens = get_user_tokens(db, request.user_id)
+    if not tokens:
+        return jsonify({
+            "error": "No push tokens registered for this user. Open the app and grant notification permission first.",
+            "tokens_count": 0,
+        }), 400
+
+    dead = send_push_notification(
+        tokens, title, body,
+        {"alert_id": 0, "source": "test"},
+    )
+    cleanup_dead_tokens(db, dead)
+    return jsonify({
+        "sent_to": len(tokens),
+        "dead_tokens_cleaned": len(dead),
+    }), 200
+
+
 @push_bp.route("/api/push/unregister", methods=["POST"])
 @require_auth
 def unregister_token():

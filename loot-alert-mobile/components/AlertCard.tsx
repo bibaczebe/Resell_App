@@ -53,19 +53,25 @@ export function AlertCard({ alert, index, onToggle, onDelete }: Props) {
 
           <View style={styles.footer}>
             <View style={styles.tags}>
-              {(alert.sources || []).map((s) => (
+              {(alert.sources || []).slice(0, 3).map((s) => (
                 <View key={s} style={styles.tag}>
-                  <Text style={styles.tagText}>{sourceIcons[s] ?? s}</Text>
+                  <Text style={styles.tagText}>{sourceIcons[s] ?? s.slice(0, 3).toUpperCase()}</Text>
                 </View>
               ))}
+              {(alert.sources?.length ?? 0) > 3 && (
+                <View style={styles.tag}>
+                  <Text style={styles.tagText}>+{(alert.sources!.length - 3)}</Text>
+                </View>
+              )}
             </View>
             <View style={styles.meta}>
               {alert.max_price ? (
-                <Text style={styles.price}>up to {alert.max_price} zł</Text>
+                <Text style={styles.price} numberOfLines={1}>≤ {alert.max_price} zł</Text>
               ) : null}
-              <Text style={styles.hits}>
-                <Feather name="bell" size={11} color={Colors.textMuted} /> {alert.trigger_count}
-              </Text>
+              <View style={styles.hitsBox}>
+                <Feather name="bell" size={11} color={Colors.textMuted} />
+                <Text style={styles.hits}>{alert.trigger_count}</Text>
+              </View>
             </View>
           </View>
         </GlassCard>
@@ -84,8 +90,8 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 6 },
   iconBtn: { padding: 4 },
   keywords: { color: Colors.textMuted, fontSize: 13, marginBottom: 12, lineHeight: 18 },
-  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  tags: { flexDirection: "row", gap: 6 },
+  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  tags: { flexDirection: "row", gap: 4, flexShrink: 1, flexWrap: "nowrap" },
   tag: {
     backgroundColor: "rgba(124,58,237,0.15)",
     borderRadius: 6,
@@ -95,7 +101,8 @@ const styles = StyleSheet.create({
     borderColor: "rgba(124,58,237,0.25)",
   },
   tagText: { color: Colors.violetLight, fontSize: 11, fontWeight: "600" },
-  meta: { flexDirection: "row", alignItems: "center", gap: 10 },
+  meta: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 0 },
   price: { color: Colors.success, fontSize: 13, fontWeight: "600" },
+  hitsBox: { flexDirection: "row", alignItems: "center", gap: 4 },
   hits: { color: Colors.textMuted, fontSize: 12 },
 });

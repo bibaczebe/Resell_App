@@ -115,14 +115,17 @@ def _search_marketplace(token: str, market: str, keywords: str,
         try:
             price_obj = item.get("price") or {}
             price = float(price_obj.get("value")) if price_obj.get("value") else None
+            currency = price_obj.get("currency") or "USD"
         except (TypeError, ValueError):
             price = None
+            currency = "USD"
 
         image_url = (item.get("image") or {}).get("imageUrl")
         listings.append(Listing(
             id=str(item.get("itemId", "")),
             title=item.get("title", ""),
             price=price,
+            currency=currency,
             url=item.get("itemWebUrl") or item.get("itemHref", ""),
             image_url=image_url,
             source=f"ebay_{market[5:].lower()}",  # e.g. ebay_us

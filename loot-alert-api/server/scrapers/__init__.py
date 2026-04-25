@@ -11,6 +11,7 @@ class Listing:
     url: str
     image_url: str | None
     source: str
+    currency: str = "PLN"
     condition: str = "unknown"
     size: str | None = None
 

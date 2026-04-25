@@ -51,8 +51,10 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
         try:
             price_obj = item.get("price") or {}
             price = float(price_obj.get("amount")) if price_obj.get("amount") else None
+            currency = price_obj.get("currency") or "USD"
         except (TypeError, ValueError):
             price = None
+            currency = "USD"
 
         photo = (item.get("_links") or {}).get("photo") or {}
         image_url = photo.get("href")
@@ -64,6 +66,7 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             id=str(item.get("id", "")),
             title=item.get("title", ""),
             price=price,
+            currency=currency,
             url=url,
             image_url=image_url,
             source="reverb",

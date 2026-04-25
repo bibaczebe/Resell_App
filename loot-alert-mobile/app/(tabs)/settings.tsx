@@ -196,6 +196,23 @@ export default function SettingsScreen() {
               thumbColor={pushEnabled ? Colors.violetLight : Colors.textFaint}
             />
           </View>
+          <TouchableOpacity
+            style={styles.testPushBtn}
+            onPress={async () => {
+              try {
+                const res = await api.post<{ sent_to: number }>("/api/push/test", {});
+                Alert.alert("Test sent", `Push sent to ${res.sent_to} device(s). Check your notifications.`);
+              } catch (e) {
+                Alert.alert(
+                  "No push token",
+                  "No push token is registered for this account. Tap the toggle above first to grant permission.",
+                );
+              }
+            }}
+          >
+            <Feather name="send" size={14} color={Colors.violetLight} />
+            <Text style={styles.testPushText}>Send test notification</Text>
+          </TouchableOpacity>
         </GlassCard>
 
         <GlassCard style={styles.section}>
@@ -259,6 +276,13 @@ const styles = StyleSheet.create({
     borderRadius: 10, borderWidth: 1, borderColor: Colors.border,
   },
   manageText: { color: Colors.textMuted, fontSize: 13, fontWeight: "500" },
+  testPushBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+    paddingVertical: 10, marginTop: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: Colors.border,
+    backgroundColor: "rgba(124,58,237,0.06)",
+  },
+  testPushText: { color: Colors.violetLight, fontSize: 13, fontWeight: "600" },
   logoutBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
     borderRadius: 14, borderWidth: 1, borderColor: "rgba(239,68,68,0.25)",

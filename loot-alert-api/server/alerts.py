@@ -194,6 +194,7 @@ def alert_current_matches(alert_id: int):
                     "id": it.id,
                     "title": it.title,
                     "price": it.price,
+                    "currency": it.currency,
                     "url": it.url,
                     "image_url": it.image_url,
                     "source": it.source,
