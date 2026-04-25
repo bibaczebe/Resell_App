@@ -62,14 +62,14 @@ export default function SettingsScreen() {
   );
 
   async function handleEnablePush() {
-    const token = await registerForPushNotifications();
-    if (token) {
+    const result = await registerForPushNotifications();
+    if (result.ok) {
       setPushEnabled(true);
       Alert.alert("Done", "Push notifications enabled.");
     } else {
       Alert.alert(
-        "Permission required",
-        "Open system Settings → Notifications and enable for LootAlert."
+        "Cannot enable push",
+        result.error ?? "Open system Settings → Notifications and enable for LootAlert.",
       );
     }
   }
