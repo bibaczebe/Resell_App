@@ -26,7 +26,6 @@ import Animated, {
   useAnimatedStyle,
   useFrameCallback,
 } from "react-native-reanimated";
-import { Accelerometer } from "expo-sensors";
 import { Colors } from "../../constants/colors";
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
@@ -90,28 +89,9 @@ function mixColors(a: string, b: string, weightA: number, weightB: number): stri
 
 export function AuroraBg() {
   const blobs = useSharedValue<BlobState[]>(initialBlobs());
-  // Device tilt → gravity vector. x: tilt right (+), y: tilt down/forward (+).
-  // Smoothed every 60ms; physics tick reads it each frame.
-  const tiltX = useSharedValue(0);
-  const tiltY = useSharedValue(0);
+  // Frame counter used for ambient sine drift
+  const tick = useSharedValue(0);
   const [ids, setIds] = useState<number[]>(() => blobs.value.map((b) => b.id));
-
-  // Subscribe to device accelerometer
-  useEffect(() => {
-    let sub: ReturnType<typeof Accelerometer.addListener> | null = null;
-    Accelerometer.setUpdateInterval(60);
-    Accelerometer.isAvailableAsync().then((available) => {
-      if (!available) return;
-      sub = Accelerometer.addListener(({ x, y }) => {
-        // Smooth low-pass filter to avoid jitter
-        tiltX.value = tiltX.value * 0.8 + x * 0.2;
-        tiltY.value = tiltY.value * 0.8 + (-y) * 0.2; // invert: tilt forward = positive y
-      });
-    });
-    return () => {
-      if (sub) sub.remove();
-    };
-  }, []);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -130,9 +110,8 @@ export function AuroraBg() {
     const next: BlobState[] = arr.map((b) => ({ ...b }));
     const n = next.length;
 
-    // Tilt → gravity. Lower coefficient = slower, more 'lava-lamp' feel
-    const gx = tiltX.value * 0.18;
-    const gy = tiltY.value * 0.18;
+    tick.value += 1;
+    const t = tick.value * 0.012;
 
     for (let i = 0; i < n; i++) {
       const b = next[i];
@@ -175,18 +154,19 @@ export function AuroraBg() {
 
       if (b.draggedBy) continue;
 
-      // Apply tilt gravity (heavier blobs respond a bit slower – feels like liquid)
-      const massFactor = 1 / Math.max(1, b.r / 180);
-      b.vx += gx * dt * massFactor;
-      b.vy += gy * dt * massFactor;
+      // Ambient floating: each blob gets a unique sine drift based on its id
+      // so they all move at slightly different rhythms (looks organic).
+      const phase = b.id * 1.7;
+      const driftX = Math.cos(t + phase) * 0.06;
+      const driftY = Math.sin(t * 0.7 + phase * 0.5) * 0.06;
 
-      // Clamp velocity to keep things sane (gentler max + more damping)
-      const maxV = 5;
-      if (b.vx > maxV) b.vx = maxV; else if (b.vx < -maxV) b.vx = -maxV;
-      if (b.vy > maxV) b.vy = maxV; else if (b.vy < -maxV) b.vy = -maxV;
+      b.vx += driftX;
+      b.vy += driftY;
 
-      b.vx *= 0.97;
-      b.vy *= 0.97;
+      // Heavy damping so they never accelerate beyond gentle floating
+      b.vx *= 0.92;
+      b.vy *= 0.92;
+
       b.x += b.vx * dt;
       b.y += b.vy * dt;
 
