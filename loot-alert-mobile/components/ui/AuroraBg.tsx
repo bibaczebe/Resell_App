@@ -61,11 +61,11 @@ function newBlob(x: number, y: number, r: number, color: string, opacity: number
 }
 
 function initialBlobs(): BlobState[] {
-  // Slower starting velocities (was 0.4-0.5, now 0.1-0.15)
+  // Near-zero starting velocities; ambient drift will gently push them
   return [
-    newBlob(30, 60, 220, Colors.violet, 0.32, 0.12, 0.06),
-    newBlob(SCREEN_W - 240, SCREEN_H * 0.28, 200, Colors.fuchsia, 0.28, -0.15, 0.08),
-    newBlob(40, SCREEN_H * 0.6, 190, Colors.indigo, 0.26, 0.09, -0.12),
+    newBlob(30, 60, 220, Colors.violet, 0.32, 0, 0),
+    newBlob(SCREEN_W - 240, SCREEN_H * 0.28, 200, Colors.fuchsia, 0.28, 0, 0),
+    newBlob(40, SCREEN_H * 0.6, 190, Colors.indigo, 0.26, 0, 0),
   ];
 }
 
@@ -111,7 +111,7 @@ export function AuroraBg() {
     const n = next.length;
 
     tick.value += 1;
-    const t = tick.value * 0.012;
+    const t = tick.value * 0.005;
 
     for (let i = 0; i < n; i++) {
       const b = next[i];
@@ -154,21 +154,21 @@ export function AuroraBg() {
 
       if (b.draggedBy) continue;
 
-      // Ambient floating: each blob gets a unique sine drift based on its id
-      // so they all move at slightly different rhythms (looks organic).
+      // Whisper-soft ambient drift, each blob phase-offset by id
       const phase = b.id * 1.7;
-      const driftX = Math.cos(t + phase) * 0.06;
-      const driftY = Math.sin(t * 0.7 + phase * 0.5) * 0.06;
+      const driftX = Math.cos(t + phase) * 0.012;
+      const driftY = Math.sin(t * 0.7 + phase * 0.5) * 0.012;
 
       b.vx += driftX;
       b.vy += driftY;
 
-      // Heavy damping so they never accelerate beyond gentle floating
-      b.vx *= 0.92;
-      b.vy *= 0.92;
+      // Aggressive damping → blobs barely move; ambient adds tiny continuous push
+      b.vx *= 0.88;
+      b.vy *= 0.88;
 
-      b.x += b.vx * dt;
-      b.y += b.vy * dt;
+      // Use sub-frame motion (dt 0.5x) – feels like very slow current
+      b.x += b.vx * dt * 0.5;
+      b.y += b.vy * dt * 0.5;
 
       if (b.x < 0) { b.x = 0; b.vx = Math.abs(b.vx) * 0.7; }
       if (b.x + b.r > SCREEN_W) { b.x = SCREEN_W - b.r; b.vx = -Math.abs(b.vx) * 0.7; }
@@ -230,8 +230,8 @@ export function AuroraBg() {
       150 + Math.random() * 50,
       [Colors.violet, Colors.fuchsia, Colors.indigo][Math.floor(Math.random() * 3)],
       0.27,
-      (Math.random() - 0.5) * 1.5,
-      (Math.random() - 0.5) * 1.5,
+      0, // no initial velocity – ambient drift will move them
+      0,
     ));
     blobs.value = [...arr];
   }, []);
