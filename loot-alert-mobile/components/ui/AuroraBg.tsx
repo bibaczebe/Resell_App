@@ -238,7 +238,10 @@ export function AuroraBg() {
   }, [respawnBlob]);
 
   return (
-    <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]} pointerEvents="box-none">
+    // No zIndex – blobs render in normal stacking order (BEHIND UI elements
+    // that come AFTER AuroraBg in JSX). UI buttons / lists always have priority.
+    // Blobs are still draggable wherever they are visible and no UI overlaps.
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
       {ids.map((id) => (
         <Blob key={id} id={id} blobs={blobs} />
       ))}

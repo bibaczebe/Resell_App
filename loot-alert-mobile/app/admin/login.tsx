@@ -7,7 +7,8 @@ import { router } from "expo-router";
 import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
-import { adminApi } from "../../lib/admin";
+import { adminApi, getAdminToken } from "../../lib/admin";
+import { Alert } from "react-native";
 import { AuroraBg } from "../../components/ui/AuroraBg";
 
 export default function AdminLogin() {
@@ -20,10 +21,18 @@ export default function AdminLogin() {
     setError("");
     setLoading(true);
     try {
-      await adminApi.login(username.trim(), password);
-      router.replace("/admin/");
+      const token = await adminApi.login(username.trim(), password);
+      // Verify token was saved to SecureStore before navigating
+      const saved = await getAdminToken();
+      if (!saved) {
+        setError("Token save failed (SecureStore)");
+        return;
+      }
+      // Use push instead of replace so the admin stack mounts on top reliably
+      router.push("/admin");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Invalid credentials");
+      Alert.alert("Login error", e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
