@@ -45,6 +45,14 @@ RESEND_FROM_EMAIL = _clean_env("RESEND_FROM_EMAIL", "LootAlert <onboarding@resen
 
 N8N_WEBHOOK_SECRET = _clean_env("N8N_WEBHOOK_SECRET", "lootalert-n8n-2026")
 
+EBAY_APP_ID = _clean_env("EBAY_APP_ID")
+EBAY_CERT_ID = _clean_env("EBAY_CERT_ID")
+EBAY_OAUTH_TOKEN = _clean_env("EBAY_OAUTH_TOKEN")  # fallback when CERT_ID unavailable
+EBAY_API_BASE = "https://api.ebay.com"
+EBAY_TOKEN_URL = "https://api.ebay.com/identity/v1/oauth2/token"
+# Default marketplaces – user can override per alert later
+EBAY_DEFAULT_MARKETS = ["EBAY_US", "EBAY_GB", "EBAY_DE", "EBAY_PL"]
+
 SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER = os.environ.get("SMTP_USER", "")

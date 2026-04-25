@@ -78,7 +78,7 @@ def create_app() -> Flask:
         from flask import request as flask_req
         import requests as rq
         from server.config import ALLEGRO_CLIENT_ID, ALLEGRO_CLIENT_SECRET, SCRAPER_API_KEY
-        from server.scrapers import olx, vinted, allegro, random_headers
+        from server.scrapers import olx, vinted, allegro, ebay, random_headers
 
         query = flask_req.args.get("q", "Nike")
         max_price = flask_req.args.get("max_price", type=float)
@@ -143,7 +143,7 @@ def create_app() -> Flask:
         except Exception as e:
             results["raw_tests"]["allegro_token"] = {"error": f"{type(e).__name__}: {e}"}
 
-        for name, module in (("olx", olx), ("vinted", vinted), ("allegro", allegro)):
+        for name, module in (("olx", olx), ("vinted", vinted), ("allegro", allegro), ("ebay", ebay)):
             try:
                 items = module.search(keywords=query, max_price=max_price, limit=5)
                 results["sources"][name] = {

@@ -143,7 +143,7 @@ def alert_current_matches(alert_id: int):
     """Fetch listings that currently match the alert (existing offers, not just new ones).
     Runs scrapers on-demand, returns combined + deduplicated results.
     """
-    from server.scrapers import olx, vinted, allegro
+    from server.scrapers import olx, vinted, allegro, ebay
 
     db = get_db()
     cur = db.cursor()
@@ -162,7 +162,12 @@ def alert_current_matches(alert_id: int):
     condition = alert["condition"] or "any"
     sources = alert["sources"] or ["olx", "vinted", "allegro"]
 
-    scraper_map = {"olx": olx.search, "vinted": vinted.search, "allegro": allegro.search}
+    scraper_map = {
+        "olx": olx.search,
+        "vinted": vinted.search,
+        "allegro": allegro.search,
+        "ebay": ebay.search,
+    }
 
     results = []
     for source in sources:
