@@ -355,48 +355,8 @@ function Blob({ id, blobs }: BlobProps) {
     };
   });
 
-  const pan = Gesture.Pan()
-    .onStart(() => {
-      "worklet";
-      const arr = blobs.value;
-      const idx = arr.findIndex((b) => b.id === id);
-      if (idx < 0) return;
-      const next = arr.slice();
-      next[idx] = { ...next[idx], draggedBy: 1, vx: 0, vy: 0 };
-      blobs.value = next;
-    })
-    .onChange((e) => {
-      "worklet";
-      const arr = blobs.value;
-      const idx = arr.findIndex((b) => b.id === id);
-      if (idx < 0) return;
-      const next = arr.slice();
-      next[idx] = {
-        ...next[idx],
-        x: next[idx].x + e.changeX,
-        y: next[idx].y + e.changeY,
-        vx: e.changeX * 0.8,
-        vy: e.changeY * 0.8,
-      };
-      blobs.value = next;
-    })
-    .onEnd((e) => {
-      "worklet";
-      const arr = blobs.value;
-      const idx = arr.findIndex((b) => b.id === id);
-      if (idx < 0) return;
-      const next = arr.slice();
-      next[idx] = {
-        ...next[idx],
-        draggedBy: 0,
-        vx: e.velocityX / 90,
-        vy: e.velocityY / 90,
-      };
-      blobs.value = next;
-    });
-
-  // No GestureDetector wrapper: blob is decorative only. Gesture conflict
-  // with screen UI (buttons, scrolling lists) was unavoidable.
+  // Decorative-only blob – motion driven entirely by tilt physics in the
+  // parent useFrameCallback. No gesture handler here.
   return (
     <Animated.View style={layoutStyle} pointerEvents="none">
       <Animated.View style={visualStyle} pointerEvents="none" />
