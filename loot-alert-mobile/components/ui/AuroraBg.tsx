@@ -238,10 +238,13 @@ export function AuroraBg() {
   }, [respawnBlob]);
 
   return (
-    // No zIndex – blobs render in normal stacking order (BEHIND UI elements
-    // that come AFTER AuroraBg in JSX). UI buttons / lists always have priority.
-    // Blobs are still draggable wherever they are visible and no UI overlaps.
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
+    // pointerEvents="none" on the wrapper means NEITHER the wrapper NOR its
+    // children receive touch events. UI underneath gets all interactions.
+    // Blobs become pure visual decoration in the background.
+    // (We intentionally drop drag-to-move here. UX-wise it was clashing with
+    // every button on every screen, and physics still runs autonomously –
+    // collisions / merges / motion all keep playing as ambient animation.)
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
       {ids.map((id) => (
         <Blob key={id} id={id} blobs={blobs} />
       ))}
@@ -356,11 +359,11 @@ function Blob({ id, blobs }: BlobProps) {
       blobs.value = next;
     });
 
+  // No GestureDetector wrapper: blob is decorative only. Gesture conflict
+  // with screen UI (buttons, scrolling lists) was unavoidable.
   return (
-    <GestureDetector gesture={pan}>
-      <Animated.View style={layoutStyle}>
-        <Animated.View style={visualStyle} pointerEvents="none" />
-      </Animated.View>
-    </GestureDetector>
+    <Animated.View style={layoutStyle} pointerEvents="none">
+      <Animated.View style={visualStyle} pointerEvents="none" />
+    </Animated.View>
   );
 }

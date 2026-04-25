@@ -25,23 +25,18 @@ export default function AdminDashboard() {
         router.replace("/admin/login");
         return;
       }
-      try {
-        const s = await adminApi.stats();
-        setStats(s);
-      } catch (e) {
-        console.warn("admin stats error:", e);
-      }
-      try {
-        const u = await adminApi.users();
-        setUsers(u.users);
-      } catch (e: unknown) {
-        if (e instanceof Error && e.message === "Unauthorized") {
-          await clearAdminToken();
-          router.replace("/admin/login");
-          return;
-        }
-        console.warn("admin users error:", e);
-      }
+      // Fetch stats and users in parallel; do NOT auto-logout on errors –
+      // surface them in console and keep the screen mounted so user can
+      // see the panel even if one call fails.
+      const [statsRes, usersRes] = await Promise.allSettled([
+        adminApi.stats(),
+        adminApi.users(),
+      ]);
+      if (statsRes.status === "fulfilled") setStats(statsRes.value);
+      else console.warn("admin stats error:", statsRes.reason);
+
+      if (usersRes.status === "fulfilled") setUsers(usersRes.value.users);
+      else console.warn("admin users error:", usersRes.reason);
     } catch (e) {
       console.warn("admin load error:", e);
     } finally {
