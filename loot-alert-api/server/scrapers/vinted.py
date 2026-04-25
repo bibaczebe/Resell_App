@@ -17,21 +17,20 @@ CONDITION_MAP = {
 
 def _via_scraper(target_url: str) -> str:
     if SCRAPER_API_KEY:
-        return f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}&url={urllib.parse.quote(target_url, safe='')}"
+        # country_code=pl routes through Polish IPs (Vinted is geo-restricted)
+        # render=false skips JS rendering (faster, ~5-15s instead of 30+)
+        return (
+            f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}"
+            f"&url={urllib.parse.quote(target_url, safe='')}"
+            f"&country_code=pl&render=false"
+        )
     return target_url
 
 
 def _get_session_cookie() -> dict:
-    try:
-        home = "https://www.vinted.pl/"
-        r = requests.get(
-            _via_scraper(home),
-            headers={**random_headers(), "Accept": "text/html"},
-            timeout=12,
-        )
-        return {c.name: c.value for c in r.cookies}
-    except Exception:
-        return {}
+    # Skip the cookie fetch — adds 15-30s and isn't needed when going through
+    # ScraperAPI (which rotates session-friendly residential proxies anyway).
+    return {}
 
 
 def _build_url(keywords: str, max_price: float | None, min_price: float,
@@ -68,7 +67,7 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             _via_scraper(target_url),
             headers=headers,
             cookies=cookies,
-            timeout=20,
+            timeout=70,  # ScraperAPI residential proxies need up to 60s for Vinted
         )
         if resp.status_code != 200:
             logger.warning("Vinted returned %s: %s", resp.status_code, resp.text[:200])
