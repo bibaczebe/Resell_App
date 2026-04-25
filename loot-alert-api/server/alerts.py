@@ -36,13 +36,21 @@ def create_alert():
 
     if plan == "free":
         cur = db.cursor()
+        # Count lifetime alerts created (not just current active) so deletes
+        # don't reset the counter. Free plan = max 3 alerts ever.
         cur.execute(
-            "SELECT COUNT(*) AS cnt FROM alerts WHERE user_id = %s AND is_active = TRUE",
+            "SELECT COALESCE(alerts_created_total, 0) AS total FROM users WHERE id = %s",
             (request.user_id,),
         )
-        count = cur.fetchone()["cnt"]
-        if count >= FREE_ALERT_LIMIT:
-            return jsonify({"error": f"Free plan allows max {FREE_ALERT_LIMIT} active alerts"}), 403
+        row = cur.fetchone()
+        total = row["total"] if row else 0
+        if total >= FREE_ALERT_LIMIT:
+            return jsonify({
+                "error": f"Free plan limit reached: {FREE_ALERT_LIMIT} alerts. Upgrade to Premium for unlimited.",
+                "code": "FREE_LIMIT_REACHED",
+                "used": total,
+                "limit": FREE_ALERT_LIMIT,
+            }), 403
 
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -65,6 +73,10 @@ def create_alert():
         (request.user_id, name, keywords, size, color, max_price, min_price, sources, condition),
     )
     alert_id = cur.fetchone()["id"]
+    cur.execute(
+        "UPDATE users SET alerts_created_total = COALESCE(alerts_created_total, 0) + 1 WHERE id = %s",
+        (request.user_id,),
+    )
     db.commit()
     return jsonify({"id": alert_id, "message": "Alert created"}), 201
 

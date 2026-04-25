@@ -5,6 +5,9 @@ export interface User {
   email: string;
   plan: "free" | "pro" | "elite" | "premium";
   is_verified: boolean;
+  alerts_created_total?: number;
+  alerts_limit?: number | null;
+  alerts_remaining?: number | null;
 }
 
 export async function login(email: string, password: string): Promise<User> {

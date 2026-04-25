@@ -11,17 +11,24 @@ import { Colors } from "../../constants/colors";
 import { AlertCard, Alert as AlertType } from "../../components/AlertCard";
 import { api } from "../../lib/api";
 import { AuroraBg } from "../../components/ui/AuroraBg";
+import { fetchMe } from "../../lib/auth";
+import type { User } from "../../lib/auth";
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const [alerts, setAlerts] = useState<AlertType[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadAlerts = useCallback(async () => {
     try {
-      const data = await api.get<AlertType[]>("/api/alerts");
+      const [data, me] = await Promise.all([
+        api.get<AlertType[]>("/api/alerts"),
+        fetchMe().catch(() => null),
+      ]);
       setAlerts(data);
+      if (me) setUser(me);
     } catch {
       // silent fail on refresh
     } finally {
@@ -74,6 +81,14 @@ export default function DashboardScreen() {
             {activeCount > 0 ? `${activeCount} active ` : "Start hunting "}
             <Text style={{ color: Colors.violetLight }}>deals</Text>
           </Text>
+          {user?.plan === "free" && user.alerts_limit ? (
+            <View style={styles.quotaBadge}>
+              <Feather name="layers" size={11} color={Colors.textMuted} />
+              <Text style={styles.quotaText}>
+                {user.alerts_created_total ?? 0}/{user.alerts_limit} alerts used (Free)
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -146,6 +161,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   greeting: { fontSize: 26, fontWeight: "800", color: Colors.text, lineHeight: 32 },
+  quotaBadge: {
+    flexDirection: "row", alignItems: "center", gap: 6,
+    marginTop: 8, alignSelf: "flex-start",
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+  },
+  quotaText: { color: Colors.textMuted, fontSize: 11, fontWeight: "600" },
   list: { paddingHorizontal: 16, paddingBottom: 20 },
   empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: 40 },
   emptyTitle: { fontSize: 18, fontWeight: "600", color: Colors.text, marginBottom: 8 },

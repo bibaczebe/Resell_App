@@ -4,7 +4,7 @@ import datetime
 import random
 from flask import Blueprint, request, jsonify
 from server.db import get_db
-from server.config import SECRET_KEY, JWT_EXPIRE_HOURS
+from server.config import SECRET_KEY, JWT_EXPIRE_HOURS, DEV_AUTO_VERIFY
 from server.emails import send_verification_code
 
 auth_bp = Blueprint("auth", __name__)
@@ -90,19 +90,20 @@ def register():
 
     pw_hash = hash_password(password)
     cur.execute(
-        "INSERT INTO users (email, password_hash) VALUES (%s, %s) RETURNING id",
-        (email, pw_hash),
+        "INSERT INTO users (email, password_hash, is_verified) VALUES (%s, %s, %s) RETURNING id",
+        (email, pw_hash, DEV_AUTO_VERIFY),
     )
     user_id = cur.fetchone()["id"]
     db.commit()
 
-    _create_verification(db, user_id, email)
+    if not DEV_AUTO_VERIFY:
+        _create_verification(db, user_id, email)
 
     token = create_token(user_id)
     return jsonify({
         "token": token,
         "user_id": user_id,
-        "requires_verification": True,
+        "requires_verification": not DEV_AUTO_VERIFY,
     }), 201
 
 
@@ -210,10 +211,20 @@ def me():
     db = get_db()
     cur = db.cursor()
     cur.execute(
-        "SELECT id, email, plan, is_verified, created_at FROM users WHERE id = %s",
+        """SELECT id, email, plan, is_verified, created_at,
+                  COALESCE(alerts_created_total, 0) AS alerts_created_total
+           FROM users WHERE id = %s""",
         (request.user_id,),
     )
     user = cur.fetchone()
     if not user:
         return jsonify({"error": "Użytkownik nie znaleziony"}), 404
-    return jsonify(dict(user)), 200
+    from server.config import FREE_ALERT_LIMIT
+    data = dict(user)
+    if data["plan"] == "free":
+        data["alerts_limit"] = FREE_ALERT_LIMIT
+        data["alerts_remaining"] = max(0, FREE_ALERT_LIMIT - (data.get("alerts_created_total") or 0))
+    else:
+        data["alerts_limit"] = None
+        data["alerts_remaining"] = None
+    return jsonify(data), 200

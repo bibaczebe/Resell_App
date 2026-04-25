@@ -46,6 +46,10 @@ SCRAPER_API_PREMIUM = _clean_env("SCRAPER_API_PREMIUM", "false").lower() == "tru
 RESEND_API_KEY = _clean_env("RESEND_API_KEY")
 RESEND_FROM_EMAIL = _clean_env("RESEND_FROM_EMAIL", "LootAlert <onboarding@resend.dev>")
 
+# When true, new users are auto-verified on registration without an email.
+# Use during MVP / testing while no verified domain is set up in Resend.
+DEV_AUTO_VERIFY = _clean_env("DEV_AUTO_VERIFY", "false").lower() == "true"
+
 N8N_WEBHOOK_SECRET = _clean_env("N8N_WEBHOOK_SECRET", "lootalert-n8n-2026")
 
 EBAY_APP_ID = _clean_env("EBAY_APP_ID")

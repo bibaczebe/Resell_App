@@ -40,8 +40,16 @@ def init_db(app):
                 stripe_customer_id     VARCHAR(100),
                 stripe_subscription_id VARCHAR(100),
                 is_verified            BOOLEAN DEFAULT FALSE,
+                alerts_created_total   INTEGER DEFAULT 0,
                 created_at             TIMESTAMP DEFAULT NOW()
             );
+
+            -- Migration for existing DBs that don't have alerts_created_total yet
+            DO $$
+            BEGIN
+                ALTER TABLE users ADD COLUMN IF NOT EXISTS alerts_created_total INTEGER DEFAULT 0;
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END $$;
 
             CREATE TABLE IF NOT EXISTS push_tokens (
                 id         SERIAL PRIMARY KEY,
