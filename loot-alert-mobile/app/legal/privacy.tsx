@@ -13,7 +13,7 @@ export default function PrivacyScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.back}>
           <Feather name="arrow-left" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Polityka prywatności</Text>
+        <Text style={styles.title}>Privacy Policy</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -21,164 +21,144 @@ export default function PrivacyScreen() {
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.updated}>Ostatnia aktualizacja: 23 kwietnia 2026</Text>
+        <Text style={styles.updated}>Last updated: April 25, 2026</Text>
 
-        <Section title="1. Administrator danych">
+        <Section title="1. Data Controller">
           <Text style={styles.p}>
-            Administratorem Twoich danych osobowych jest <Strong>LootAlert</Strong>
-            (dalej: „Administrator"), kontakt: <Strong>kontakt@lootalert.app</Strong>.
+            The data controller is <Strong>LootAlert</Strong> ("Controller").
+            Contact: <Strong>contact@lootalert.app</Strong>.
             {"\n\n"}
-            Dane kontaktowe do spraw RODO: <Strong>privacy@lootalert.app</Strong>.
+            GDPR matters: <Strong>privacy@lootalert.app</Strong>.
           </Text>
         </Section>
 
-        <Section title="2. Jakie dane zbieramy">
+        <Section title="2. Data we collect">
           <Bullet>
-            <Strong>Adres email</Strong> – wymagany do utworzenia konta i przesyłania kodu
-            weryfikacyjnego oraz powiadomień o alertach.
+            <Strong>Email address</Strong> – needed to create an account, send verification codes, and deliver alerts.
           </Bullet>
           <Bullet>
-            <Strong>Hasło</Strong> – przechowujemy wyłącznie w formie zahaszowanej (bcrypt); nie
-            znamy i nie jesteśmy w stanie odzyskać Twojego hasła w formie czytelnej.
+            <Strong>Password</Strong> – stored as a bcrypt hash only; we never know or can recover your plaintext password.
           </Bullet>
           <Bullet>
-            <Strong>Token urządzenia (push token)</Strong> – identyfikator urządzenia niezbędny do
-            wysyłania powiadomień push.
+            <Strong>Push token</Strong> – device identifier required to send push notifications.
           </Bullet>
           <Bullet>
-            <Strong>Parametry alertów</Strong> – słowa kluczowe, zakres cenowy, wybrane portale,
-            filtry. Potrzebne wyłącznie do realizacji usługi.
+            <Strong>Alert parameters</Strong> – keywords, price range, sources, filters. Used solely to operate the service.
           </Bullet>
           <Bullet>
-            <Strong>Historia powiadomień</Strong> – jakie oferty trafiały do Twoich alertów
-            (tytuł, cena, link, źródło, znacznik czasu) przez okres do 90 dni.
+            <Strong>Notification history</Strong> – which listings triggered your alerts (title, price, link, source, timestamp), kept up to 90 days.
           </Bullet>
           <Bullet>
-            <Strong>Dane płatnicze</Strong> – NIE przechowujemy danych karty. Płatności obsługuje
-            <Strong> Stripe, Inc.</Strong>; my otrzymujemy tylko identyfikator subskrypcji.
+            <Strong>Payment data</Strong> – we do NOT store card data. Payments are handled by <Strong>Stripe, Inc.</Strong>; we only receive a subscription identifier.
           </Bullet>
           <Bullet>
-            <Strong>Data rejestracji i logowań</Strong> – dla bezpieczeństwa konta i rate-limitu.
+            <Strong>Sign-up and login timestamps</Strong> – for account security and rate limiting.
           </Bullet>
         </Section>
 
-        <Section title="3. W jakim celu przetwarzamy dane">
-          <Bullet>Świadczenie usługi LootAlert (monitoring i powiadomienia).</Bullet>
-          <Bullet>Uwierzytelnianie i zabezpieczenie konta.</Bullet>
-          <Bullet>Obsługa płatności (Stripe).</Bullet>
-          <Bullet>Wysyłka powiadomień push i emaili serwisowych.</Bullet>
-          <Bullet>Realizacja żądań RODO.</Bullet>
-          <Bullet>Analiza błędów i wydajności aplikacji (w formie zanonimizowanej).</Bullet>
+        <Section title="3. Why we process your data">
+          <Bullet>Operating LootAlert (monitoring and notifications).</Bullet>
+          <Bullet>Authentication and account security.</Bullet>
+          <Bullet>Payment processing (Stripe).</Bullet>
+          <Bullet>Sending push notifications and transactional emails.</Bullet>
+          <Bullet>Handling GDPR requests.</Bullet>
+          <Bullet>Anonymous error and performance analysis.</Bullet>
         </Section>
 
-        <Section title="4. Podstawa prawna">
-          <Text style={styles.p}>
-            Przetwarzamy Twoje dane na podstawie:
-          </Text>
+        <Section title="4. Legal basis">
+          <Text style={styles.p}>We process your data based on:</Text>
           <Bullet>
-            <Strong>art. 6 ust. 1 lit. b RODO</Strong> – wykonanie umowy o świadczenie usługi.
+            <Strong>Art. 6(1)(b) GDPR</Strong> – performance of the service contract.
           </Bullet>
           <Bullet>
-            <Strong>art. 6 ust. 1 lit. a RODO</Strong> – Twoja zgoda (np. na otrzymywanie
-            powiadomień push).
+            <Strong>Art. 6(1)(a) GDPR</Strong> – your consent (e.g. push notifications).
           </Bullet>
           <Bullet>
-            <Strong>art. 6 ust. 1 lit. f RODO</Strong> – prawnie uzasadniony interes Administratora
-            (bezpieczeństwo, zapobieganie nadużyciom).
+            <Strong>Art. 6(1)(f) GDPR</Strong> – legitimate interest (security, fraud prevention).
           </Bullet>
           <Bullet>
-            <Strong>art. 6 ust. 1 lit. c RODO</Strong> – obowiązek prawny (np. podatkowy).
+            <Strong>Art. 6(1)(c) GDPR</Strong> – legal obligation (e.g. tax records).
           </Bullet>
         </Section>
 
-        <Section title="5. Komu przekazujemy dane">
+        <Section title="5. Who we share data with">
           <Bullet>
-            <Strong>Railway Corp.</Strong> (USA) – hosting backendu i bazy danych.
+            <Strong>Railway Corp.</Strong> (US) – backend and database hosting.
           </Bullet>
           <Bullet>
-            <Strong>Resend, Inc.</Strong> (USA) – wysyłka maili transakcyjnych.
+            <Strong>Resend, Inc.</Strong> (US) – transactional emails.
           </Bullet>
           <Bullet>
-            <Strong>Stripe, Inc.</Strong> (USA) – obsługa płatności.
+            <Strong>Stripe, Inc.</Strong> (US) – payment processing.
           </Bullet>
           <Bullet>
-            <Strong>Expo (650 Industries, Inc.)</Strong> (USA) – dostarczenie powiadomień push.
+            <Strong>Expo (650 Industries, Inc.)</Strong> (US) – push notification delivery.
           </Bullet>
           <Bullet>
-            <Strong>OLX, Vinted, Allegro</Strong> – publiczne API do pobierania ofert (nie
-            przekazujemy im Twoich danych osobowych).
+            <Strong>OLX, Vinted, Allegro, eBay, Reverb, Discogs</Strong> – public APIs we read for listing data (we do NOT share your personal data with them).
           </Bullet>
           <Text style={styles.p}>
-            Transfer do USA odbywa się na podstawie standardowych klauzul umownych (SCC) oraz
-            ram EU-US Data Privacy Framework.
+            Transfers to the US rely on Standard Contractual Clauses (SCCs) and the EU–US Data Privacy Framework.
           </Text>
         </Section>
 
-        <Section title="6. Jak długo przechowujemy dane">
-          <Bullet>Dane konta – do czasu usunięcia konta przez użytkownika.</Bullet>
-          <Bullet>Historia powiadomień – do 90 dni od utworzenia.</Bullet>
-          <Bullet>Dane rozliczeniowe (Stripe) – 5 lat (obowiązek podatkowy).</Bullet>
-          <Bullet>Logi systemowe – do 30 dni.</Bullet>
-          <Bullet>Kody weryfikacyjne – 15 minut.</Bullet>
+        <Section title="6. How long we keep data">
+          <Bullet>Account data – until you delete your account.</Bullet>
+          <Bullet>Notification history – up to 90 days.</Bullet>
+          <Bullet>Billing records (Stripe) – 5 years (tax law).</Bullet>
+          <Bullet>System logs – up to 30 days.</Bullet>
+          <Bullet>Verification codes – 15 minutes.</Bullet>
         </Section>
 
-        <Section title="7. Twoje prawa">
-          <Text style={styles.p}>Masz prawo do:</Text>
-          <Bullet>dostępu do swoich danych i otrzymania ich kopii (art. 15 RODO);</Bullet>
-          <Bullet>sprostowania nieprawidłowych danych (art. 16);</Bullet>
-          <Bullet>usunięcia danych / „bycia zapomnianym" (art. 17);</Bullet>
-          <Bullet>ograniczenia przetwarzania (art. 18);</Bullet>
-          <Bullet>przenoszenia danych (art. 20);</Bullet>
-          <Bullet>sprzeciwu wobec przetwarzania (art. 21);</Bullet>
-          <Bullet>cofnięcia zgody w dowolnym momencie;</Bullet>
+        <Section title="7. Your rights">
+          <Text style={styles.p}>You have the right to:</Text>
+          <Bullet>access your data and obtain a copy (Art. 15 GDPR);</Bullet>
+          <Bullet>rectify inaccurate data (Art. 16);</Bullet>
+          <Bullet>erase your data – the "right to be forgotten" (Art. 17);</Bullet>
+          <Bullet>restrict processing (Art. 18);</Bullet>
+          <Bullet>data portability (Art. 20);</Bullet>
+          <Bullet>object to processing (Art. 21);</Bullet>
+          <Bullet>withdraw consent at any time;</Bullet>
           <Bullet>
-            wniesienia skargi do Prezesa Urzędu Ochrony Danych Osobowych (PUODO, ul. Stawki 2,
-            00-193 Warszawa).
+            lodge a complaint with the President of the Personal Data Protection Office (PUODO, ul. Stawki 2, 00-193 Warsaw, Poland) or your local supervisory authority.
           </Bullet>
           <Text style={styles.p}>
-            Aby skorzystać z prawa, napisz na <Strong>privacy@lootalert.app</Strong>. Odpowiemy
-            w terminie do 30 dni.
+            To exercise any of these rights, email <Strong>privacy@lootalert.app</Strong>. We respond within 30 days.
           </Text>
         </Section>
 
-        <Section title="8. Bezpieczeństwo">
-          <Bullet>Hasła hashowane bcrypt z indywidualnym salt.</Bullet>
-          <Bullet>Ruch szyfrowany TLS 1.2+.</Bullet>
-          <Bullet>Tokeny JWT z krótkim czasem życia (7 dni).</Bullet>
-          <Bullet>Rate-limiting logowań i rejestracji.</Bullet>
-          <Bullet>Kopie zapasowe bazy danych.</Bullet>
+        <Section title="8. Security">
+          <Bullet>Passwords hashed with bcrypt + per-user salt.</Bullet>
+          <Bullet>TLS 1.2+ encryption in transit.</Bullet>
+          <Bullet>JWT tokens with short TTL (7 days).</Bullet>
+          <Bullet>Rate limiting on sign-up and login.</Bullet>
+          <Bullet>Regular database backups.</Bullet>
         </Section>
 
-        <Section title="9. Pliki cookies i analityka">
+        <Section title="9. Cookies and analytics">
           <Text style={styles.p}>
-            Aplikacja mobilna nie używa plików cookies w rozumieniu prawa telekomunikacyjnego.
-            Korzystamy z lokalnego bezpiecznego magazynu (Expo SecureStore / iOS Keychain /
-            Android Keystore) do przechowywania tokena sesji.
+            The mobile app does not use cookies as defined under telecommunications law. We use the secure on-device storage (Expo SecureStore / iOS Keychain / Android Keystore) to keep your session token.
             {"\n\n"}
-            Nie używamy zewnętrznych narzędzi analitycznych (Google Analytics, Facebook Pixel
-            itp.).
+            We do not use third-party analytics tools (Google Analytics, Facebook Pixel, etc.).
           </Text>
         </Section>
 
-        <Section title="10. Dzieci">
+        <Section title="10. Children">
           <Text style={styles.p}>
-            Usługa nie jest kierowana do dzieci poniżej 16 lat. Nie zbieramy świadomie danych
-            osobowych dzieci. Jeśli dowiemy się, że dziecko poniżej 16 lat przekazało nam dane,
-            niezwłocznie je usuniemy.
+            The service is not directed at children under 16. We do not knowingly collect data from minors. If we learn that a child under 16 has provided us with data, we will delete it.
           </Text>
         </Section>
 
-        <Section title="11. Zmiany polityki">
+        <Section title="11. Policy changes">
           <Text style={styles.p}>
-            Zmiany niniejszej polityki opublikujemy w aplikacji i powiadomimy emailem. Dalsze
-            korzystanie z usługi po wejściu zmian w życie oznacza ich akceptację.
+            We will publish updates in the app and notify you by email. Continued use of the service after the changes take effect means you accept them.
           </Text>
         </Section>
 
-        <Section title="12. Kontakt">
+        <Section title="12. Contact">
           <Text style={styles.p}>
-            Pytania w sprawie prywatności: <Strong>privacy@lootalert.app</Strong>
-            {"\n"}Ogólny kontakt: <Strong>kontakt@lootalert.app</Strong>
+            Privacy: <Strong>privacy@lootalert.app</Strong>
+            {"\n"}General: <Strong>contact@lootalert.app</Strong>
           </Text>
         </Section>
       </ScrollView>

@@ -15,18 +15,19 @@ stripe_bp = Blueprint("stripe", __name__)
 
 @stripe_bp.route("/api/stripe/plans", methods=["GET"])
 def plans():
-    """Return available subscription plans with direct Payment Links."""
+    """Return available subscription plans with feature copy."""
     return jsonify({
         "pro": {
             "name": "Pro",
             "price": 9.99,
             "currency": "PLN",
-            "period": "miesiąc",
+            "period": "month",
             "features": [
-                "Nieograniczone alerty",
-                "Polling co 2 min (priorytet)",
-                "Push notifications",
-                "Wszystkie portale (OLX, Vinted, Allegro)",
+                "Unlimited alerts",
+                "2-minute polling (priority queue)",
+                "All 5 marketplaces (OLX, eBay, Allegro, Reverb, Discogs)",
+                "Global coverage – US, UK, DE, PL",
+                "Push notifications + match history",
             ],
             "payment_link": STRIPE_LINK_PRO,
             "price_id": STRIPE_PRICE_PRO or STRIPE_PRICE_PREMIUM,
@@ -35,13 +36,13 @@ def plans():
             "name": "Elite",
             "price": 19.99,
             "currency": "PLN",
-            "period": "miesiąc",
+            "period": "month",
             "features": [
-                "Wszystko z planu Pro",
-                "Polling co 60 sekund",
-                "Wielokanałowe powiadomienia",
-                "Wczesny dostęp do nowych funkcji",
-                "Wsparcie priorytetowe 24/7",
+                "Everything in Pro",
+                "60-second polling (catch deals first)",
+                "Unlimited match history (no 90-day limit)",
+                "Early access to new marketplaces (Vinted, Catawiki…)",
+                "Priority email support",
             ],
             "payment_link": STRIPE_LINK_ELITE,
             "price_id": STRIPE_PRICE_ELITE,

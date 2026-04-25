@@ -24,99 +24,98 @@ _BASE_CSS = """
 def privacy():
     return (
         f"""<!doctype html>
-<html lang="pl"><head><meta charset="utf-8"><title>Polityka prywatności – LootAlert</title>
+<html lang="en"><head><meta charset="utf-8"><title>Privacy Policy – LootAlert</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">{_BASE_CSS}</head><body>
-<h1>Polityka prywatności – LootAlert</h1>
-<p class="updated">Ostatnia aktualizacja: 23 kwietnia 2026</p>
+<h1>Privacy Policy – LootAlert</h1>
+<p class="updated">Last updated: April 25, 2026</p>
 
-<h2>1. Administrator danych</h2>
-<p>Administratorem Twoich danych osobowych jest <strong>LootAlert</strong>
-(dalej: „Administrator"), kontakt: <strong>kontakt@lootalert.app</strong>.<br>
-Sprawy RODO: <strong>privacy@lootalert.app</strong>.</p>
+<h2>1. Data Controller</h2>
+<p>The data controller is <strong>LootAlert</strong> ("Controller"), contact: <strong>contact@lootalert.app</strong>.<br>
+GDPR matters: <strong>privacy@lootalert.app</strong>.</p>
 
-<h2>2. Jakie dane zbieramy</h2>
+<h2>2. Data we collect</h2>
 <ul>
-<li><strong>Adres email</strong> – wymagany do utworzenia konta, wysyłki kodów weryfikacyjnych i powiadomień.</li>
-<li><strong>Hasło</strong> – przechowujemy wyłącznie jako skrót bcrypt; nie znamy Twojego hasła.</li>
-<li><strong>Token urządzenia (push token)</strong> – do wysyłki powiadomień push.</li>
-<li><strong>Parametry alertów</strong> – słowa kluczowe, cena, portale, filtry – wyłącznie do realizacji usługi.</li>
-<li><strong>Historia powiadomień</strong> – do 90 dni (tytuł, cena, link, źródło, znacznik czasu).</li>
-<li><strong>Dane płatnicze</strong> – NIE przechowujemy kart. Obsługuje Stripe, Inc.</li>
-<li><strong>Data rejestracji i logowań</strong> – dla bezpieczeństwa konta.</li>
+<li><strong>Email</strong> – needed to create an account, send verification codes, and deliver alerts.</li>
+<li><strong>Password</strong> – stored only as a bcrypt hash; we never know your plaintext password.</li>
+<li><strong>Push token</strong> – device identifier required for push notifications.</li>
+<li><strong>Alert parameters</strong> – keywords, price, sources, filters – used solely for the service.</li>
+<li><strong>Notification history</strong> – up to 90 days (title, price, link, source, timestamp).</li>
+<li><strong>Payment data</strong> – we do NOT store cards. Handled by Stripe, Inc.</li>
+<li><strong>Sign-up and login timestamps</strong> – for account security.</li>
 </ul>
 
-<h2>3. W jakim celu przetwarzamy dane</h2>
+<h2>3. Why we process your data</h2>
 <ul>
-<li>Świadczenie usługi (monitoring ofert i powiadomienia push).</li>
-<li>Uwierzytelnianie i bezpieczeństwo.</li>
-<li>Obsługa płatności (Stripe).</li>
-<li>Wysyłka maili serwisowych.</li>
-<li>Realizacja żądań RODO.</li>
+<li>Operating the service (monitoring listings + push notifications).</li>
+<li>Authentication and security.</li>
+<li>Payment processing (Stripe).</li>
+<li>Sending transactional emails.</li>
+<li>Handling GDPR requests.</li>
 </ul>
 
-<h2>4. Podstawa prawna (RODO)</h2>
+<h2>4. Legal basis (GDPR)</h2>
 <ul>
-<li>art. 6 ust. 1 lit. b – wykonanie umowy;</li>
-<li>art. 6 ust. 1 lit. a – Twoja zgoda (push);</li>
-<li>art. 6 ust. 1 lit. f – prawnie uzasadniony interes (bezpieczeństwo);</li>
-<li>art. 6 ust. 1 lit. c – obowiązek prawny (podatki).</li>
+<li>Art. 6(1)(b) – performance of the service contract;</li>
+<li>Art. 6(1)(a) – your consent (push);</li>
+<li>Art. 6(1)(f) – legitimate interest (security);</li>
+<li>Art. 6(1)(c) – legal obligation (taxes).</li>
 </ul>
 
-<h2>5. Komu przekazujemy dane (procesory)</h2>
+<h2>5. Who we share data with (processors)</h2>
 <ul>
-<li><strong>Railway Corp.</strong> (USA) – hosting.</li>
-<li><strong>Resend, Inc.</strong> (USA) – maile transakcyjne.</li>
-<li><strong>Stripe, Inc.</strong> (USA) – płatności.</li>
-<li><strong>Expo (650 Industries, Inc.)</strong> (USA) – powiadomienia push.</li>
-<li><strong>OLX / Vinted / Allegro</strong> – publiczne API (nie przekazujemy Twoich danych osobowych).</li>
+<li><strong>Railway Corp.</strong> (US) – hosting.</li>
+<li><strong>Resend, Inc.</strong> (US) – transactional emails.</li>
+<li><strong>Stripe, Inc.</strong> (US) – payments.</li>
+<li><strong>Expo (650 Industries, Inc.)</strong> (US) – push notification delivery.</li>
+<li><strong>OLX / Vinted / Allegro / eBay / Reverb / Discogs</strong> – public APIs (we do NOT share your personal data with them).</li>
 </ul>
-<p>Transfer do USA – standardowe klauzule umowne (SCC) + EU-US Data Privacy Framework.</p>
+<p>US transfers rely on Standard Contractual Clauses (SCCs) and the EU–US Data Privacy Framework.</p>
 
-<h2>6. Jak długo przechowujemy dane</h2>
+<h2>6. How long we keep data</h2>
 <ul>
-<li>Dane konta – do usunięcia konta.</li>
-<li>Historia powiadomień – 90 dni.</li>
-<li>Dane rozliczeniowe – 5 lat.</li>
-<li>Logi – 30 dni.</li>
-<li>Kody weryfikacyjne – 15 minut.</li>
+<li>Account data – until account deletion.</li>
+<li>Notification history – 90 days.</li>
+<li>Billing records – 5 years.</li>
+<li>System logs – 30 days.</li>
+<li>Verification codes – 15 minutes.</li>
 </ul>
 
-<h2>7. Twoje prawa</h2>
+<h2>7. Your rights</h2>
 <ul>
-<li>dostęp do danych (art. 15 RODO);</li>
-<li>sprostowanie (art. 16);</li>
-<li>usunięcie / „prawo do bycia zapomnianym" (art. 17);</li>
-<li>ograniczenie przetwarzania (art. 18);</li>
-<li>przenoszenie (art. 20);</li>
-<li>sprzeciw (art. 21);</li>
-<li>cofnięcie zgody;</li>
-<li>skarga do PUODO (ul. Stawki 2, 00-193 Warszawa).</li>
+<li>access (Art. 15 GDPR);</li>
+<li>rectification (Art. 16);</li>
+<li>erasure / "right to be forgotten" (Art. 17);</li>
+<li>restriction of processing (Art. 18);</li>
+<li>data portability (Art. 20);</li>
+<li>objection (Art. 21);</li>
+<li>withdrawal of consent;</li>
+<li>complaint to the Polish PUODO (ul. Stawki 2, 00-193 Warsaw) or your local supervisory authority.</li>
 </ul>
-<p>Kontakt: <strong>privacy@lootalert.app</strong> – odpowiedź w 30 dni.</p>
+<p>Contact: <strong>privacy@lootalert.app</strong> – we respond within 30 days.</p>
 
-<h2>8. Bezpieczeństwo</h2>
+<h2>8. Security</h2>
 <ul>
-<li>Hasła bcrypt z salt.</li>
+<li>Passwords hashed with bcrypt + per-user salt.</li>
 <li>TLS 1.2+.</li>
-<li>JWT z TTL 7 dni.</li>
-<li>Rate-limiting.</li>
-<li>Regularne backupy.</li>
+<li>JWT with 7-day TTL.</li>
+<li>Rate limiting.</li>
+<li>Regular database backups.</li>
 </ul>
 
-<h2>9. Pliki cookies</h2>
-<p>Aplikacja mobilna nie używa cookies. Lokalnie przechowujemy tylko token sesji w bezpiecznym magazynie systemu (iOS Keychain / Android Keystore).</p>
+<h2>9. Cookies</h2>
+<p>The mobile app does not use cookies. Locally we keep only a session token in the device's secure store (iOS Keychain / Android Keystore).</p>
 
-<h2>10. Dzieci</h2>
-<p>Usługa nie jest kierowana do osób poniżej 16 roku życia.</p>
+<h2>10. Children</h2>
+<p>The service is not directed at people under 16.</p>
 
-<h2>11. Zmiany polityki</h2>
-<p>Zmiany opublikujemy w aplikacji i wyślemy emailem. Dalsze korzystanie po zmianie oznacza akceptację.</p>
+<h2>11. Policy changes</h2>
+<p>Updates will be published in the app and emailed to you. Continued use means acceptance.</p>
 
-<h2>12. Kontakt</h2>
-<p>RODO: <strong>privacy@lootalert.app</strong><br>
-Ogólny: <strong>kontakt@lootalert.app</strong></p>
+<h2>12. Contact</h2>
+<p>GDPR: <strong>privacy@lootalert.app</strong><br>
+General: <strong>contact@lootalert.app</strong></p>
 
-<footer>LootAlert – Polska, 2026. Wszystkie prawa zastrzeżone.</footer>
+<footer>LootAlert · 2026. All rights reserved.</footer>
 </body></html>""",
         200,
         {"Content-Type": "text/html; charset=utf-8"},
@@ -128,81 +127,73 @@ Ogólny: <strong>kontakt@lootalert.app</strong></p>
 def terms():
     return (
         f"""<!doctype html>
-<html lang="pl"><head><meta charset="utf-8"><title>Regulamin – LootAlert</title>
+<html lang="en"><head><meta charset="utf-8"><title>Terms of Service – LootAlert</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">{_BASE_CSS}</head><body>
-<h1>Regulamin – LootAlert</h1>
-<p class="updated">Ostatnia aktualizacja: 23 kwietnia 2026</p>
+<h1>Terms of Service – LootAlert</h1>
+<p class="updated">Last updated: April 25, 2026</p>
 
-<h2>1. Postanowienia ogólne</h2>
-<p>Regulamin określa zasady świadczenia usług drogą elektroniczną w aplikacji <strong>LootAlert</strong>.
-Usługodawca: <strong>LootAlert</strong>, <strong>kontakt@lootalert.app</strong>.</p>
+<h2>1. General</h2>
+<p>These Terms govern the electronic services provided in the <strong>LootAlert</strong> mobile app.
+Provider: <strong>LootAlert</strong>, <strong>contact@lootalert.app</strong>.</p>
 
-<h2>2. Definicje</h2>
+<h2>2. Definitions</h2>
 <ul>
-<li><strong>Użytkownik</strong> – osoba fizyczna (min. 16 lat) korzystająca z Aplikacji.</li>
-<li><strong>Alert</strong> – zestaw parametrów wyszukiwania ofert.</li>
-<li><strong>Portale partnerskie</strong> – OLX, Vinted, Allegro i inne monitorowane serwisy.</li>
-<li><strong>Plan Free / Pro / Elite</strong> – warianty Usługi.</li>
+<li><strong>User</strong> – an individual at least 16 years old using the App.</li>
+<li><strong>Alert</strong> – a set of search parameters.</li>
+<li><strong>Partner marketplaces</strong> – OLX, eBay, Allegro, Reverb, Discogs, and other monitored services.</li>
+<li><strong>Free / Pro / Elite</strong> – plan tiers.</li>
 </ul>
 
-<h2>3. Zakres Usługi</h2>
-<p>LootAlert automatycznie monitoruje publiczne oferty z portali partnerskich i wysyła powiadomienia push.
-Aplikacja <strong>nie pośredniczy</strong> w transakcjach.</p>
+<h2>3. Service scope</h2>
+<p>LootAlert automatically monitors public listings on partner marketplaces and sends push notifications.
+The App <strong>does not act as an intermediary</strong> in transactions.</p>
 
-<h2>4. Rejestracja</h2>
+<h2>4. Sign-up</h2>
 <ul>
-<li>Wymagany prawdziwy email + hasło min. 8 znaków.</li>
-<li>Użytkownik odpowiada za bezpieczeństwo danych logowania.</li>
-<li>Konto można usunąć w dowolnym momencie.</li>
+<li>Real email + password (min. 8 characters) required.</li>
+<li>Users are responsible for credential security.</li>
+<li>Account can be deleted at any time.</li>
 </ul>
 
-<h2>5. Plany i opłaty</h2>
+<h2>5. Plans and pricing</h2>
 <ul>
-<li><strong>Free</strong> – 0 zł, 3 alerty, pollowanie 5 min.</li>
-<li><strong>Pro</strong> – 9,99 zł/mies., bez limitu alertów, pollowanie 2 min.</li>
-<li><strong>Elite</strong> – 19,99 zł/mies., pollowanie 60 s, priorytet.</li>
+<li><strong>Free</strong> – PLN 0, 3 alerts (lifetime), 5-minute polling.</li>
+<li><strong>Pro</strong> – PLN 9.99 / month, unlimited alerts, 2-minute polling.</li>
+<li><strong>Elite</strong> – PLN 19.99 / month, 60-second polling, priority support.</li>
 </ul>
-<p>Subskrypcja odnawia się automatycznie. Płatności: Stripe. Ceny zawierają VAT.</p>
+<p>Subscriptions auto-renew. Payments via Stripe. Prices include VAT where applicable.</p>
 
-<h2>6. Prawo odstąpienia (konsumenci)</h2>
-<p>Konsumentowi przysługuje prawo odstąpienia w terminie <strong>14 dni</strong>. Użytkownik wyraża zgodę
-na rozpoczęcie Usługi przed upływem 14 dni, tracąc prawo odstąpienia w zakresie świadczenia już wykonanego
-(art. 38 pkt 13 ustawy o prawach konsumenta). Niewykorzystana część miesiąca – proporcjonalny zwrot.</p>
+<h2>6. Right of withdrawal (consumers)</h2>
+<p>Consumers in the EU have a <strong>14-day right of withdrawal</strong>. By starting to use the Service before the 14-day period ends, the User waives the right of withdrawal for the part already performed (Polish Consumer Rights Act art. 38(13)). The unused portion of the month may be refunded pro rata.</p>
 
-<h2>7. Zakazy</h2>
+<h2>7. Prohibited use</h2>
 <ul>
-<li>Używanie niezgodne z prawem.</li>
-<li>Zakłócanie działania Aplikacji.</li>
-<li>Udostępnianie Konta osobom trzecim; wiele kont w celu obejścia limitów Free.</li>
-<li>Tworzenie alertów na treści nielegalne.</li>
+<li>Use that violates the law.</li>
+<li>Interfering with the App.</li>
+<li>Sharing the Account with third parties; multiple accounts to bypass Free limits.</li>
+<li>Creating alerts for illegal content.</li>
 </ul>
 
-<h2>8. Odpowiedzialność</h2>
-<p>Usługodawca nie gwarantuje 100% dostępności, natychmiastowości powiadomień ani skutecznego zakupu.
-Nie odpowiada za treść ofert z portali partnerskich ani za transakcje. Odpowiedzialność ograniczona do
-kwoty opłaty za bieżący miesiąc.</p>
+<h2>8. Liability</h2>
+<p>The Provider does not guarantee 100% uptime, real-time delivery, or successful purchase. Not liable for partner-marketplace content or transactions. Liability capped at the amount paid for the current month.</p>
 
-<h2>9. Reklamacje</h2>
-<p>Składaj na <strong>kontakt@lootalert.app</strong>. Rozpatrzymy w 14 dni. Pozostaje platforma ODR,
-Rzecznik Konsumentów, WIIH.</p>
+<h2>9. Complaints</h2>
+<p>Submit to <strong>contact@lootalert.app</strong>. Reply within 14 days. Other options: EU ODR platform, Consumer Ombudsman, Trade Inspection mediation.</p>
 
-<h2>10. Własność intelektualna</h2>
-<p>Prawa do Aplikacji należą do Usługodawcy. Użytkownik otrzymuje niewyłączną licencję do użytku
-osobistego. Znaki OLX, Vinted, Allegro – własność ich właścicieli (nominative fair use).</p>
+<h2>10. Intellectual property</h2>
+<p>Rights to the App belong to the Provider. User receives a non-exclusive license for personal use. Names of OLX, eBay, Allegro, etc. belong to their owners (nominative fair use).</p>
 
-<h2>11. Zmiany Regulaminu</h2>
-<p>Zmiany z powiadomieniem emailem na 14 dni przed wejściem. Brak akceptacji – możliwość usunięcia
-konta z proporcjonalnym zwrotem.</p>
+<h2>11. Changes to the Terms</h2>
+<p>Notified by email 14 days in advance. If unaccepted – delete the Account with a pro-rata refund.</p>
 
-<h2>12. Prawo właściwe</h2>
-<p>Regulamin podlega prawu polskiemu. Sądy: właściwe miejscowo; w sprawach konsumenckich – sąd miejsca
-zamieszkania konsumenta.</p>
+<h2>12. Governing law</h2>
+<p>Polish law. Jurisdiction: court of the Provider's seat; for consumers – the consumer's residence.</p>
 
-<h2>13. Kontakt</h2>
-<p><strong>kontakt@lootalert.app</strong> – ogólny<br>
-<strong>privacy@lootalert.app</strong> – RODO</p>
+<h2>13. Contact</h2>
+<p><strong>contact@lootalert.app</strong> – general<br>
+<strong>privacy@lootalert.app</strong> – GDPR</p>
 
-<footer>LootAlert – Polska, 2026. Wszystkie prawa zastrzeżone.</footer>
+<footer>LootAlert · 2026. All rights reserved.</footer>
 </body></html>""",
         200,
         {"Content-Type": "text/html; charset=utf-8"},

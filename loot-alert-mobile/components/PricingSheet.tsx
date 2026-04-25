@@ -91,7 +91,13 @@ export function PricingSheet({ visible, onClose }: Props) {
               name="Free"
               price="0 zł"
               tag="Free"
-              features={["3 active alerts", "Polling every 5 min", "Push notifications"]}
+              features={[
+                "3 alerts (lifetime)",
+                "5-minute polling",
+                "5 marketplaces (OLX, eBay, Allegro, Reverb, Discogs)",
+                "Push notifications",
+                "30-day match history",
+              ]}
               onPress={() => {}}
               disabled
               current

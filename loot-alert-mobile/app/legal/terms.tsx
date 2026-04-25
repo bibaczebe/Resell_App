@@ -13,7 +13,7 @@ export default function TermsScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.back}>
           <Feather name="arrow-left" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Regulamin</Text>
+        <Text style={styles.title}>Terms of Service</Text>
         <View style={{ width: 22 }} />
       </View>
 
@@ -21,195 +21,135 @@ export default function TermsScreen() {
         contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.updated}>Ostatnia aktualizacja: 23 kwietnia 2026</Text>
+        <Text style={styles.updated}>Last updated: April 25, 2026</Text>
 
-        <Section title="1. Postanowienia ogólne">
+        <Section title="1. General">
           <Text style={styles.p}>
-            Niniejszy regulamin określa zasady świadczenia usług drogą elektroniczną w ramach
-            aplikacji mobilnej <Strong>LootAlert</Strong> (dalej: „Aplikacja" lub „Usługa").
+            These Terms govern the electronic services provided in the <Strong>LootAlert</Strong> mobile app ("App" or "Service").
             {"\n\n"}
-            Usługodawcą jest <Strong>LootAlert</Strong>, kontakt: <Strong>kontakt@lootalert.app</Strong>
-            (dalej: „Usługodawca").
+            The service provider is <Strong>LootAlert</Strong>, contact: <Strong>contact@lootalert.app</Strong> ("Provider").
             {"\n\n"}
-            Regulamin jest udostępniany bezpłatnie przed zawarciem umowy w sposób umożliwiający
-            jego pobranie, utrwalenie i wydrukowanie.
+            These Terms are made available free of charge in a way that allows them to be downloaded, saved, and printed.
           </Text>
         </Section>
 
-        <Section title="2. Definicje">
+        <Section title="2. Definitions">
           <Bullet>
-            <Strong>Użytkownik</Strong> – osoba fizyczna, która ukończyła 16 lat, korzystająca z
-            Aplikacji.
+            <Strong>User</Strong> – an individual at least 16 years old using the App.
           </Bullet>
           <Bullet>
-            <Strong>Konto</Strong> – indywidualny rachunek Użytkownika chroniony hasłem.
+            <Strong>Account</Strong> – an individual user record protected by a password.
           </Bullet>
           <Bullet>
-            <Strong>Alert</Strong> – zdefiniowany przez Użytkownika zestaw parametrów wyszukiwania
-            ofert na zewnętrznych portalach ogłoszeniowych.
+            <Strong>Alert</Strong> – a set of search parameters defined by the User.
           </Bullet>
           <Bullet>
-            <Strong>Portale partnerskie</Strong> – OLX, Vinted, Allegro i inne serwisy, których
-            publiczne API/strony są monitorowane przez Aplikację.
+            <Strong>Partner marketplaces</Strong> – OLX, eBay, Allegro, Reverb, Discogs and other services monitored via their public APIs.
           </Bullet>
           <Bullet>
-            <Strong>Plan Free / Pro / Elite</Strong> – warianty Usługi o różnej liczbie alertów i
-            częstotliwości odświeżania.
+            <Strong>Free / Pro / Elite</Strong> – Service plan tiers.
           </Bullet>
         </Section>
 
-        <Section title="3. Zakres Usługi">
+        <Section title="3. Service scope">
           <Text style={styles.p}>
-            LootAlert automatycznie monitoruje publiczne oferty z portali partnerskich pod kątem
-            parametrów zdefiniowanych przez Użytkownika i przesyła natywne powiadomienia push,
-            gdy pojawi się pasująca oferta.
+            LootAlert automatically monitors public listings on partner marketplaces according to user-defined parameters and sends native push notifications when a matching offer appears.
             {"\n\n"}
-            Aplikacja <Strong>nie pośredniczy</Strong> w transakcjach między Użytkownikiem a
-            sprzedającym. Wszelkie zakupy, płatności i spory Użytkownik realizuje bezpośrednio na
-            portalu, z którego pochodzi oferta.
+            The App <Strong>does not act as an intermediary</Strong> in transactions between Users and sellers. Purchases, payments, and disputes are handled directly on the originating marketplace.
           </Text>
         </Section>
 
-        <Section title="4. Rejestracja i Konto">
-          <Bullet>Do korzystania wymagane jest utworzenie Konta (email + hasło).</Bullet>
-          <Bullet>
-            Użytkownik zobowiązany jest podać prawdziwy adres email i utrzymywać jego aktualność.
-          </Bullet>
-          <Bullet>Minimalna długość hasła wynosi 8 znaków.</Bullet>
-          <Bullet>
-            Użytkownik odpowiada za bezpieczeństwo swoich danych logowania i nie udostępnia ich
-            osobom trzecim.
-          </Bullet>
-          <Bullet>
-            Użytkownik może w dowolnym momencie usunąć swoje Konto w ustawieniach lub pisząc na
-            kontakt@lootalert.app.
-          </Bullet>
+        <Section title="4. Sign-up and Account">
+          <Bullet>An Account (email + password) is required to use the Service.</Bullet>
+          <Bullet>Users must provide a real, working email address.</Bullet>
+          <Bullet>Passwords must be at least 8 characters.</Bullet>
+          <Bullet>Users are responsible for the security of their credentials and may not share them.</Bullet>
+          <Bullet>Users may delete their Account at any time from settings or by contacting contact@lootalert.app.</Bullet>
         </Section>
 
-        <Section title="5. Plany i opłaty">
+        <Section title="5. Plans and pricing">
           <Text style={styles.p}>
-            <Strong>Plan Free</Strong> – bezpłatnie, do 3 aktywnych alertów, częstotliwość
-            pollowania 5 minut.
+            <Strong>Free</Strong> – PLN 0, up to 3 alerts (lifetime), 5-minute polling.
             {"\n\n"}
-            <Strong>Plan Pro – 9,99 zł/miesiąc</Strong> – nieograniczona liczba alertów,
-            pollowanie co 2 minuty, priorytet.
+            <Strong>Pro – PLN 9.99 / month</Strong> – unlimited alerts, 2-minute polling, all 5 marketplaces, push notifications.
             {"\n\n"}
-            <Strong>Plan Elite – 19,99 zł/miesiąc</Strong> – wszystko z Pro + pollowanie co 60 s,
-            wczesny dostęp do nowych funkcji, wsparcie priorytetowe.
+            <Strong>Elite – PLN 19.99 / month</Strong> – everything in Pro plus 60-second polling, unlimited match history, early access to new sources, priority support.
             {"\n\n"}
-            Subskrypcja odnawia się automatycznie co miesiąc, dopóki Użytkownik jej nie anuluje.
-            Anulowania można dokonać w dowolnym momencie przez panel Stripe lub pisząc na
-            kontakt@lootalert.app. Usługa będzie świadczona do końca opłaconego okresu.
+            Subscriptions auto-renew monthly until cancelled. Cancellation is available any time via the Stripe customer portal or by emailing contact@lootalert.app. The Service remains available until the end of the paid period.
             {"\n\n"}
-            Płatności obsługuje <Strong>Stripe, Inc.</Strong> Ceny zawierają VAT (jeśli dotyczy).
+            Payments are processed by <Strong>Stripe, Inc.</Strong> Prices include VAT where applicable.
           </Text>
         </Section>
 
-        <Section title="6. Prawo odstąpienia (konsumenci)">
+        <Section title="6. Right of withdrawal (consumers)">
           <Text style={styles.p}>
-            Konsumentowi przysługuje prawo odstąpienia od umowy w terminie{" "}
-            <Strong>14 dni</Strong> bez podania przyczyny.
+            Consumers in the EU/UK have a <Strong>14-day right of withdrawal</Strong> from a contract concluded at distance, without giving a reason.
             {"\n\n"}
-            <Strong>UWAGA:</Strong> Użytkownik wyraża zgodę na rozpoczęcie świadczenia Usługi
-            przed upływem 14 dni, czym traci prawo odstąpienia w odniesieniu do usługi już
-            wykonanej (art. 38 pkt 13 ustawy o prawach konsumenta). Dotyczy to aktywnych alertów
-            i wysłanych powiadomień. Niewykonana część subskrypcji (pozostałe dni miesiąca) może
-            być proporcjonalnie zwrócona.
+            <Strong>NOTE:</Strong> By starting to use the Service before the 14-day period ends, the User agrees to immediate performance and waives the right of withdrawal for the part already performed (Polish Consumer Rights Act art. 38(13)). This applies to active alerts and notifications already sent. The unused portion of the subscription period may be refunded pro rata.
             {"\n\n"}
-            Odstąpienie należy zgłosić emailem na <Strong>kontakt@lootalert.app</Strong>.
+            Withdrawal must be communicated by email to <Strong>contact@lootalert.app</Strong>.
           </Text>
         </Section>
 
-        <Section title="7. Obowiązki i ograniczenia Użytkownika">
-          <Text style={styles.p}>Użytkownik zobowiązuje się:</Text>
-          <Bullet>nie używać Aplikacji do celów niezgodnych z prawem;</Bullet>
-          <Bullet>nie zakłócać działania Aplikacji (DDoS, scraping naszego API);</Bullet>
-          <Bullet>
-            nie odsprzedawać, nie udostępniać dostępu do Konta osobom trzecim ani nie tworzyć
-            wielu Kont w celu obejścia limitów Planu Free;
-          </Bullet>
-          <Bullet>
-            nie tworzyć alertów na treści nielegalne, naruszające prawa autorskie, dobra osobiste
-            lub dobre obyczaje;
-          </Bullet>
-          <Bullet>
-            przestrzegać regulaminów portali partnerskich podczas kontaktu ze sprzedającymi.
-          </Bullet>
+        <Section title="7. User obligations">
+          <Text style={styles.p}>The User agrees to:</Text>
+          <Bullet>not use the App for unlawful purposes;</Bullet>
+          <Bullet>not interfere with the App (DDoS, scraping our API);</Bullet>
+          <Bullet>not resell, share, or use the Account by third parties; not create multiple accounts to bypass the Free plan limit;</Bullet>
+          <Bullet>not create alerts for illegal content, content infringing copyrights, personal rights, or public morals;</Bullet>
+          <Bullet>respect the terms of partner marketplaces when contacting sellers.</Bullet>
         </Section>
 
-        <Section title="8. Odpowiedzialność Usługodawcy">
+        <Section title="8. Provider's liability">
+          <Text style={styles.p}>The Provider exercises due care to keep the App working but does <Strong>not guarantee</Strong>:</Text>
+          <Bullet>100% uptime (partner marketplaces may temporarily block requests or change APIs);</Bullet>
+          <Bullet>real-time delivery – polling happens on intervals;</Bullet>
+          <Bullet>completeness of results – we may miss listings outside the scraper's scope;</Bullet>
+          <Bullet>successful purchase – good deals disappear in seconds and Users compete with other buyers directly on the marketplace.</Bullet>
           <Text style={styles.p}>
-            Usługodawca dokłada należytej staranności, aby Aplikacja działała prawidłowo, ale{" "}
-            <Strong>nie gwarantuje</Strong>:
-          </Text>
-          <Bullet>
-            100% dostępności (portale partnerskie mogą czasowo blokować żądania lub zmieniać API);
-          </Bullet>
-          <Bullet>natychmiastowości powiadomień – polling odbywa się w interwałach;</Bullet>
-          <Bullet>kompletności wyników – możemy przeoczyć oferty spoza scope scrapera;</Bullet>
-          <Bullet>
-            skuteczności zakupu – oferty znikają w sekundach, a Użytkownik konkuruje z innymi
-            kupującymi bezpośrednio na portalu.
-          </Bullet>
-          <Text style={styles.p}>
-            Usługodawca nie odpowiada za: treść i prawdziwość ogłoszeń na portalach partnerskich,
-            jakość oferowanych produktów, transakcje ze sprzedającymi, utratę okazji w wyniku
-            awarii technicznej.
+            The Provider is not responsible for: the content or accuracy of partner-marketplace listings, the quality of offered goods, transactions with sellers, or missed opportunities due to technical failures.
             {"\n\n"}
-            Odpowiedzialność Usługodawcy wobec Użytkownika ograniczona jest do kwoty opłaty
-            uiszczonej za bieżący miesiąc (dla planów Pro/Elite).
+            The Provider's liability to a User is capped at the amount paid for the current month (Pro / Elite).
           </Text>
         </Section>
 
-        <Section title="9. Reklamacje">
+        <Section title="9. Complaints">
           <Text style={styles.p}>
-            Reklamacje dotyczące Usługi można składać emailem na{" "}
-            <Strong>kontakt@lootalert.app</Strong>. Usługodawca rozpatrzy reklamację w terminie do
-            14 dni.
+            Complaints regarding the Service may be filed by email to <Strong>contact@lootalert.app</Strong>. The Provider will respond within 14 days.
             {"\n\n"}
-            W razie nieuwzględnienia reklamacji Użytkownik może skorzystać z:
+            If a complaint is rejected, the User may use:
           </Text>
-          <Bullet>platformy ODR (https://ec.europa.eu/consumers/odr);</Bullet>
-          <Bullet>pomocy Powiatowego/Miejskiego Rzecznika Konsumentów;</Bullet>
-          <Bullet>mediacji przed Wojewódzkim Inspektorem Inspekcji Handlowej.</Bullet>
+          <Bullet>the EU ODR platform (https://ec.europa.eu/consumers/odr);</Bullet>
+          <Bullet>the District / City Consumer Ombudsman;</Bullet>
+          <Bullet>mediation before the Voivodeship Inspector of the Trade Inspection.</Bullet>
         </Section>
 
-        <Section title="10. Własność intelektualna">
+        <Section title="10. Intellectual property">
           <Text style={styles.p}>
-            Wszystkie prawa do Aplikacji, jej kodu, designu, logotypu i treści należą do
-            Usługodawcy lub jego licencjodawców. Użytkownikowi udziela się niewyłącznej,
-            nieprzenoszalnej licencji na korzystanie z Aplikacji wyłącznie do własnego użytku
-            zgodnie z Regulaminem.
+            All rights to the App, its code, design, logos, and content belong to the Provider or its licensors. The User receives a non-exclusive, non-transferable license to use the App for personal use in line with these Terms.
             {"\n\n"}
-            Nazwy OLX, Vinted, Allegro oraz inne znaki towarowe należą do ich właścicieli i są
-            używane wyłącznie w celach informacyjnych (nominative fair use).
+            The names OLX, Vinted, Allegro, eBay, Reverb, Discogs and other trademarks belong to their owners and are used for informational purposes only (nominative fair use).
           </Text>
         </Section>
 
-        <Section title="11. Zmiany Regulaminu">
+        <Section title="11. Changes to the Terms">
           <Text style={styles.p}>
-            Usługodawca może zmienić Regulamin z ważnych przyczyn (zmiana prawa, zmiana funkcji,
-            zmiana cennika). O zmianach Użytkownik zostanie powiadomiony emailem co najmniej
-            14 dni przed wejściem zmian w życie. W razie braku akceptacji Użytkownik może usunąć
-            Konto i otrzymać proporcjonalny zwrot niewykorzystanej subskrypcji.
+            The Provider may amend these Terms for valid reasons (changes in law, features, or pricing). Users will be notified by email at least 14 days before changes take effect. If a User does not accept the changes, they may delete their Account and receive a pro-rata refund of the unused subscription period.
           </Text>
         </Section>
 
-        <Section title="12. Prawo właściwe i sąd">
+        <Section title="12. Governing law and jurisdiction">
           <Text style={styles.p}>
-            Regulamin podlega prawu polskiemu. Spory rozstrzyga sąd właściwy miejscowo dla
-            siedziby Usługodawcy, a w sprawach konsumenckich – sąd właściwy dla miejsca
-            zamieszkania konsumenta.
+            These Terms are governed by Polish law. Disputes are settled by the court with jurisdiction over the Provider's seat; consumer disputes by the court of the consumer's residence.
             {"\n\n"}
-            W zakresie nieuregulowanym stosuje się przepisy Kodeksu cywilnego, ustawy o prawach
-            konsumenta oraz ustawy o świadczeniu usług drogą elektroniczną.
+            Matters not regulated here are governed by the Polish Civil Code, the Polish Consumer Rights Act, and the Act on Providing Services by Electronic Means.
           </Text>
         </Section>
 
-        <Section title="13. Kontakt">
+        <Section title="13. Contact">
           <Text style={styles.p}>
-            Email: <Strong>kontakt@lootalert.app</Strong>
-            {"\n"}Sprawy RODO: <Strong>privacy@lootalert.app</Strong>
+            Email: <Strong>contact@lootalert.app</Strong>
+            {"\n"}GDPR: <Strong>privacy@lootalert.app</Strong>
           </Text>
         </Section>
       </ScrollView>

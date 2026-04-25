@@ -78,15 +78,15 @@ def register():
     password = data.get("password") or ""
 
     if not email or "@" not in email:
-        return jsonify({"error": "Nieprawidłowy email"}), 400
+        return jsonify({"error": "Invalid email address"}), 400
     if len(password) < 8:
-        return jsonify({"error": "Hasło musi mieć min. 8 znaków"}), 400
+        return jsonify({"error": "Password must be at least 8 characters"}), 400
 
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT id FROM users WHERE email = %s", (email,))
     if cur.fetchone():
-        return jsonify({"error": "Email już zarejestrowany"}), 409
+        return jsonify({"error": "Email already registered"}), 409
 
     pw_hash = hash_password(password)
     cur.execute(
@@ -122,7 +122,7 @@ def login():
     user = cur.fetchone()
 
     if not user or not check_password(password, user["password_hash"]):
-        return jsonify({"error": "Nieprawidłowy email lub hasło"}), 401
+        return jsonify({"error": "Invalid email or password"}), 401
 
     token = create_token(user["id"])
     return jsonify({
@@ -140,7 +140,7 @@ def verify_code():
     code = (data.get("code") or "").strip()
 
     if not code or len(code) != 6 or not code.isdigit():
-        return jsonify({"error": "Podaj 6-cyfrowy kod"}), 400
+        return jsonify({"error": "Enter the 6-digit code"}), 400
 
     db = get_db()
     cur = db.cursor()
@@ -155,13 +155,13 @@ def verify_code():
     row = cur.fetchone()
 
     if not row:
-        return jsonify({"error": "Brak aktywnego kodu. Poproś o nowy."}), 400
+        return jsonify({"error": "No active code. Please request a new one."}), 400
     if row["consumed"]:
-        return jsonify({"error": "Kod już użyty. Poproś o nowy."}), 400
+        return jsonify({"error": "Code already used. Please request a new one."}), 400
     if row["expires_at"] < datetime.datetime.utcnow():
-        return jsonify({"error": "Kod wygasł. Poproś o nowy."}), 400
+        return jsonify({"error": "Code expired. Please request a new one."}), 400
     if row["attempts"] >= 5:
-        return jsonify({"error": "Za dużo prób. Poproś o nowy kod."}), 429
+        return jsonify({"error": "Too many attempts. Please request a new code."}), 429
 
     cur.execute(
         "UPDATE email_verifications SET attempts = attempts + 1 WHERE id = %s",
@@ -170,13 +170,13 @@ def verify_code():
 
     if row["code"] != code:
         db.commit()
-        return jsonify({"error": "Nieprawidłowy kod"}), 400
+        return jsonify({"error": "Invalid code"}), 400
 
     cur.execute("UPDATE email_verifications SET consumed = TRUE WHERE id = %s", (row["id"],))
     cur.execute("UPDATE users SET is_verified = TRUE WHERE id = %s", (request.user_id,))
     db.commit()
 
-    return jsonify({"message": "Email zweryfikowany", "is_verified": True}), 200
+    return jsonify({"message": "Email verified", "is_verified": True}), 200
 
 
 @auth_bp.route("/api/auth/resend-code", methods=["POST"])
@@ -187,9 +187,9 @@ def resend_code():
     cur.execute("SELECT email, is_verified FROM users WHERE id = %s", (request.user_id,))
     user = cur.fetchone()
     if not user:
-        return jsonify({"error": "Nie znaleziono użytkownika"}), 404
+        return jsonify({"error": "User not found"}), 404
     if user["is_verified"]:
-        return jsonify({"message": "Email już zweryfikowany"}), 200
+        return jsonify({"message": "Email already verified"}), 200
 
     # Rate limit: max 1 code per 60s
     cur.execute(
@@ -199,10 +199,10 @@ def resend_code():
     )
     last = cur.fetchone()
     if last and (datetime.datetime.utcnow() - last["created_at"]).total_seconds() < 60:
-        return jsonify({"error": "Poczekaj 60 sekund przed wysłaniem nowego kodu"}), 429
+        return jsonify({"error": "Please wait 60 seconds before requesting a new code"}), 429
 
     _create_verification(db, request.user_id, user["email"])
-    return jsonify({"message": "Nowy kod wysłany"}), 200
+    return jsonify({"message": "New code sent"}), 200
 
 
 @auth_bp.route("/api/auth/me", methods=["GET"])
@@ -218,7 +218,7 @@ def me():
     )
     user = cur.fetchone()
     if not user:
-        return jsonify({"error": "Użytkownik nie znaleziony"}), 404
+        return jsonify({"error": "User not found"}), 404
     from server.config import FREE_ALERT_LIMIT
     data = dict(user)
     if data["plan"] == "free":

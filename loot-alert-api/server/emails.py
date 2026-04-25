@@ -19,7 +19,7 @@ def send_verification_code(to_email: str, code: str) -> bool:
         resend.Emails.send({
             "from": RESEND_FROM_EMAIL,
             "to": [to_email],
-            "subject": f"Kod weryfikacyjny LootAlert: {code}",
+            "subject": f"Your LootAlert verification code: {code}",
             "html": html,
         })
         logger.info("Verification code sent to %s", to_email)
@@ -45,9 +45,9 @@ def _verification_html(code: str) -> str:
           <tr>
             <td align="center">
               <div style="font-size:11px;font-weight:800;color:#A78BFA;letter-spacing:3px;margin-bottom:24px;">LOOTALERT</div>
-              <h1 style="color:#F8F8F8;font-size:24px;font-weight:700;margin:0 0 8px 0;">Zweryfikuj swój email</h1>
+              <h1 style="color:#F8F8F8;font-size:24px;font-weight:700;margin:0 0 8px 0;">Verify your email</h1>
               <p style="color:rgba(255,255,255,0.45);font-size:14px;line-height:20px;margin:0 0 32px 0;">
-                Wpisz ten 6-cyfrowy kod w aplikacji, żeby aktywować konto i zacząć łapać okazje.
+                Enter this 6-digit code in the app to activate your account and start hunting deals.
               </p>
 
               <div style="background:linear-gradient(135deg,rgba(124,58,237,0.2) 0%,rgba(217,70,239,0.15) 100%);border:1px solid rgba(124,58,237,0.4);border-radius:16px;padding:24px 20px;margin-bottom:32px;">
@@ -57,15 +57,15 @@ def _verification_html(code: str) -> str:
               </div>
 
               <p style="color:rgba(255,255,255,0.3);font-size:12px;line-height:18px;margin:0;">
-                Kod jest ważny przez <strong style="color:rgba(255,255,255,0.6);">15 minut</strong>.<br>
-                Jeśli to nie Ty zakładasz konto – po prostu zignoruj tego maila.
+                The code is valid for <strong style="color:rgba(255,255,255,0.6);">15 minutes</strong>.<br>
+                If this wasn't you, just ignore this email.
               </p>
             </td>
           </tr>
         </table>
 
         <p style="color:rgba(255,255,255,0.25);font-size:11px;margin-top:24px;">
-          LootAlert · Monitoring okazji na Vinted, OLX, Allegro
+          LootAlert · Real-time deal alerts on Vinted, OLX, eBay, Allegro, Reverb, Discogs
         </p>
       </td>
     </tr>
