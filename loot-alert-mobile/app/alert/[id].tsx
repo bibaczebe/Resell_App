@@ -65,16 +65,20 @@ export default function AlertDetailScreen() {
     loadCurrent();
   }, [id]);
 
+  const [matchesError, setMatchesError] = useState<string | null>(null);
+
   async function loadCurrent() {
     if (!id) return;
     setLoadingCurrent(true);
+    setMatchesError(null);
     try {
       const res = await api.get<{ matches: CurrentMatch[]; count: number }>(
         `/api/alerts/${id}/current-matches`
       );
-      setCurrentMatches(res.matches);
-    } catch {
-      // silent
+      setCurrentMatches(res.matches ?? []);
+    } catch (e) {
+      console.warn("current-matches error:", e);
+      setMatchesError(e instanceof Error ? e.message : "Failed to load offers");
     } finally {
       setLoadingCurrent(false);
     }
@@ -162,6 +166,15 @@ export default function AlertDetailScreen() {
           <View style={styles.empty}>
             <ActivityIndicator color={Colors.violetLight} />
             <Text style={[styles.emptyText, { marginTop: 12 }]}>Searching marketplaces…</Text>
+          </View>
+        ) : matchesError ? (
+          <View style={styles.empty}>
+            <Feather name="alert-circle" size={40} color={Colors.error} style={{ marginBottom: 12 }} />
+            <Text style={styles.emptyText}>Failed to load: {matchesError}</Text>
+            <TouchableOpacity style={styles.refreshBtn} onPress={loadCurrent}>
+              <Feather name="refresh-cw" size={14} color={Colors.violetLight} />
+              <Text style={styles.refreshText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : currentMatches.length === 0 ? (
           <View style={styles.empty}>

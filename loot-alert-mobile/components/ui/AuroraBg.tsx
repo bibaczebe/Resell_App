@@ -62,10 +62,11 @@ function newBlob(x: number, y: number, r: number, color: string, opacity: number
 }
 
 function initialBlobs(): BlobState[] {
+  // Slower starting velocities (was 0.4-0.5, now 0.1-0.15)
   return [
-    newBlob(30, 60, 220, Colors.violet, 0.32, 0.4, 0.2),
-    newBlob(SCREEN_W - 240, SCREEN_H * 0.28, 200, Colors.fuchsia, 0.28, -0.5, 0.3),
-    newBlob(40, SCREEN_H * 0.6, 190, Colors.indigo, 0.26, 0.3, -0.4),
+    newBlob(30, 60, 220, Colors.violet, 0.32, 0.12, 0.06),
+    newBlob(SCREEN_W - 240, SCREEN_H * 0.28, 200, Colors.fuchsia, 0.28, -0.15, 0.08),
+    newBlob(40, SCREEN_H * 0.6, 190, Colors.indigo, 0.26, 0.09, -0.12),
   ];
 }
 
@@ -129,10 +130,9 @@ export function AuroraBg() {
     const next: BlobState[] = arr.map((b) => ({ ...b }));
     const n = next.length;
 
-    // Convert smoothed tilt → gravitational force in pixels/frame²
-    // 1g of tilt ≈ 8 px/frame velocity per second; with 60fps this is ~0.13 px per frame
-    const gx = tiltX.value * 0.55;
-    const gy = tiltY.value * 0.55;
+    // Tilt → gravity. Lower coefficient = slower, more 'lava-lamp' feel
+    const gx = tiltX.value * 0.18;
+    const gy = tiltY.value * 0.18;
 
     for (let i = 0; i < n; i++) {
       const b = next[i];
@@ -180,13 +180,13 @@ export function AuroraBg() {
       b.vx += gx * dt * massFactor;
       b.vy += gy * dt * massFactor;
 
-      // Clamp velocity to keep things sane
-      const maxV = 14;
+      // Clamp velocity to keep things sane (gentler max + more damping)
+      const maxV = 5;
       if (b.vx > maxV) b.vx = maxV; else if (b.vx < -maxV) b.vx = -maxV;
       if (b.vy > maxV) b.vy = maxV; else if (b.vy < -maxV) b.vy = -maxV;
 
-      b.vx *= 0.995;
-      b.vy *= 0.995;
+      b.vx *= 0.97;
+      b.vy *= 0.97;
       b.x += b.vx * dt;
       b.y += b.vy * dt;
 
@@ -217,19 +217,7 @@ export function AuroraBg() {
           const bn = c.vx * nx + c.vy * ny;
           const approach = an - bn;
 
-          if (approach > MERGE_VELOCITY && !a.draggedBy && !c.draggedBy
-              && (a.r + c.r) < MAX_BLOB_R * 1.5
-              && a.absorbInto === 0 && c.absorbInto === 0) {
-            const big = a.r >= c.r ? a : c;
-            const small = a.r >= c.r ? c : a;
-            // Start "absorbing" animation: small shrinks toward big over ~14 frames
-            small.absorbInto = big.id;
-            small.absorbProgress = 0;
-            // Pulse the big one for the same duration
-            big.mergePulse = 14;
-            continue;
-          }
-
+          // Merge logic disabled — blobs only bounce off each other elastically.
           const overlap = (minDist - dist) * 0.5;
           a.x -= nx * overlap;
           a.y -= ny * overlap;
