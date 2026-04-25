@@ -1,18 +1,22 @@
 /**
- * Aurora background v5 — centralized gesture handler.
+ * Aurora background v6 — per-blob gesture detector with ANIMATED LAYOUT.
  *
- * All blobs are draggable through ONE Pan gesture on the full-screen container.
- * onStart we hit-test (e.x, e.y) against current blob positions and pick the
- * closest match within radius. This fixes v4's bug where each blob's
- * GestureDetector used its layout box (always at top-left 0,0) so only one
- * blob caught touches.
+ * Why this works where v5 didn't:
+ *  - Reanimated's hit area for GestureDetector follows the wrapped view's
+ *    layout, NOT its transform. Earlier versions positioned blobs via
+ *    transform: translate which left the hit box pinned at top-left (0,0).
+ *  - This version animates `left` and `top` in useAnimatedStyle.
+ *    Hit area moves with the blob → tap anywhere on the visible blob works,
+ *    in any position, after any drag, after merge, always.
+ *  - Container is pointerEvents="box-none" so taps in empty space pass
+ *    through to underlying UI. Each blob is pointerEvents="auto".
  *
- * Other features:
- *  - Bigger blobs, water-drop deformation along velocity vector
- *  - Edge-based circle collisions (true r1+r2 separation)
- *  - High-impact merge with mass-weighted color mixing (area conservation)
- *  - Auto-respawn when fewer than 3 blobs remain
- *  - No snap-back home, just very soft damping
+ * Other features kept from v4/v5:
+ *  - Water-drop deformation (inner View with transform stretch/squash)
+ *  - Edge-based circle collision (true r1+r2 separation)
+ *  - High-impact merge with weighted color mixing
+ *  - Auto-respawn when fewer than 3 blobs alive
+ *  - No snap-back home (very gentle damping only)
  */
 
 import { View, StyleSheet, Dimensions } from "react-native";
@@ -36,19 +40,17 @@ interface BlobState {
   r: number;
   color: string;
   opacity: number;
-  alive: number;       // 1 = visible, 0 = absorbed
+  alive: number;
+  draggedBy: number;
 }
 
 const MERGE_VELOCITY = 5;
-const MIN_BLOB_R = 90;
 const MAX_BLOB_R = 360;
 
 let nextId = 1;
 
 function newBlob(x: number, y: number, r: number, color: string, opacity: number, vx = 0, vy = 0): BlobState {
-  return {
-    id: nextId++, x, y, r, color, opacity, vx, vy, alive: 1,
-  };
+  return { id: nextId++, x, y, r, color, opacity, vx, vy, alive: 1, draggedBy: 0 };
 }
 
 function initialBlobs(): BlobState[] {
@@ -79,10 +81,8 @@ function mixColors(a: string, b: string, weightA: number, weightB: number): stri
 
 export function AuroraBg() {
   const blobs = useSharedValue<BlobState[]>(initialBlobs());
-  const draggedId = useSharedValue<number>(-1);
   const [ids, setIds] = useState<number[]>(() => blobs.value.map((b) => b.id));
 
-  // Sync alive blob ids to JS state for rendering list (cheap diff every 200 ms)
   useEffect(() => {
     const t = setInterval(() => {
       const live = blobs.value.filter((b) => b.alive).map((b) => b.id);
@@ -92,7 +92,7 @@ export function AuroraBg() {
     return () => clearInterval(t);
   }, [ids]);
 
-  // ---------- Physics tick ----------
+  // Physics on UI thread
   useFrameCallback((frame) => {
     "worklet";
     const dt = Math.min(frame.timeSincePreviousFrame ?? 16, 40) / 16;
@@ -100,11 +100,9 @@ export function AuroraBg() {
     const next: BlobState[] = arr.map((b) => ({ ...b }));
     const n = next.length;
 
-    // Integrate motion + edge bounce (skip dragged blob)
     for (let i = 0; i < n; i++) {
       const b = next[i];
-      if (!b.alive) continue;
-      if (b.id === draggedId.value) continue;
+      if (!b.alive || b.draggedBy) continue;
 
       b.vx *= 0.995;
       b.vy *= 0.995;
@@ -117,7 +115,7 @@ export function AuroraBg() {
       if (b.y + b.r > SCREEN_H) { b.y = SCREEN_H - b.r; b.vy = -Math.abs(b.vy) * 0.7; }
     }
 
-    // Pairwise edge collisions + merge
+    // Pairwise edge collision + merge
     for (let i = 0; i < n; i++) {
       for (let j = i + 1; j < n; j++) {
         const a = next[i];
@@ -126,12 +124,8 @@ export function AuroraBg() {
 
         const rA = a.r * 0.5;
         const rB = c.r * 0.5;
-        const acx = a.x + rA;
-        const acy = a.y + rA;
-        const ccx = c.x + rB;
-        const ccy = c.y + rB;
-        const dx = ccx - acx;
-        const dy = ccy - acy;
+        const dx = (c.x + rB) - (a.x + rA);
+        const dy = (c.y + rB) - (a.y + rA);
         const dist = Math.sqrt(dx * dx + dy * dy);
         const minDist = rA + rB;
 
@@ -142,12 +136,7 @@ export function AuroraBg() {
           const bn = c.vx * nx + c.vy * ny;
           const approach = an - bn;
 
-          // MERGE on energetic collision (neither being dragged)
-          if (
-            approach > MERGE_VELOCITY &&
-            a.id !== draggedId.value && c.id !== draggedId.value &&
-            (a.r + c.r) < MAX_BLOB_R * 1.5
-          ) {
+          if (approach > MERGE_VELOCITY && !a.draggedBy && !c.draggedBy && (a.r + c.r) < MAX_BLOB_R * 1.5) {
             const big = a.r >= c.r ? a : c;
             const small = a.r >= c.r ? c : a;
             const mA = big.r * big.r;
@@ -161,7 +150,6 @@ export function AuroraBg() {
             continue;
           }
 
-          // Edge separation
           const overlap = (minDist - dist) * 0.5;
           a.x -= nx * overlap;
           a.y -= ny * overlap;
@@ -184,7 +172,6 @@ export function AuroraBg() {
     blobs.value = next;
   });
 
-  // ---------- Auto-respawn ----------
   const respawnBlob = useCallback(() => {
     const arr = blobs.value;
     const live = arr.filter((b) => b.alive);
@@ -206,32 +193,73 @@ export function AuroraBg() {
     return () => clearInterval(t);
   }, [respawnBlob]);
 
-  // ---------- Centralized Pan with hit-testing ----------
+  return (
+    <View style={[StyleSheet.absoluteFillObject, { zIndex: 9999 }]} pointerEvents="box-none">
+      {ids.map((id) => (
+        <Blob key={id} id={id} blobs={blobs} />
+      ))}
+    </View>
+  );
+}
+
+interface BlobProps {
+  id: number;
+  blobs: Animated.SharedValue<BlobState[]>;
+}
+
+function Blob({ id, blobs }: BlobProps) {
+  // Outer style animates LAYOUT (left, top, width, height) -> hit area follows
+  const layoutStyle = useAnimatedStyle(() => {
+    const arr = blobs.value;
+    const b = arr.find((x) => x.id === id);
+    if (!b || !b.alive) {
+      return { left: 0, top: 0, width: 0, height: 0, opacity: 0 };
+    }
+    return {
+      position: "absolute" as const,
+      left: b.x,
+      top: b.y,
+      width: b.r,
+      height: b.r,
+      opacity: b.opacity,
+    };
+  });
+
+  // Inner style applies the visual deformation (does not affect hit area)
+  const visualStyle = useAnimatedStyle(() => {
+    const arr = blobs.value;
+    const b = arr.find((x) => x.id === id);
+    if (!b || !b.alive) return { width: 0, height: 0 };
+    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+    const stretch = Math.min(1.3, 1 + speed * 0.03);
+    const squash = Math.max(0.82, 1 - speed * 0.025);
+    const angle = Math.atan2(b.vy, b.vx);
+    return {
+      width: "100%" as const,
+      height: "100%" as const,
+      borderRadius: b.r / 2,
+      backgroundColor: b.color,
+      transform: [
+        { rotate: `${angle}rad` },
+        { scaleX: stretch },
+        { scaleY: squash },
+        { rotate: `${-angle}rad` },
+      ],
+    };
+  });
+
   const pan = Gesture.Pan()
-    .onStart((e) => {
+    .onStart(() => {
       "worklet";
       const arr = blobs.value;
-      // Find blob whose visual circle contains the touch point (smallest distance)
-      let bestId = -1;
-      let bestDist = Infinity;
-      for (const b of arr) {
-        if (!b.alive) continue;
-        const cx = b.x + b.r / 2;
-        const cy = b.y + b.r / 2;
-        const dx = e.x - cx;
-        const dy = e.y - cy;
-        const d = Math.sqrt(dx * dx + dy * dy);
-        if (d < b.r / 2 && d < bestDist) {
-          bestDist = d;
-          bestId = b.id;
-        }
-      }
-      draggedId.value = bestId;
+      const idx = arr.findIndex((b) => b.id === id);
+      if (idx < 0) return;
+      const next = arr.slice();
+      next[idx] = { ...next[idx], draggedBy: 1, vx: 0, vy: 0 };
+      blobs.value = next;
     })
     .onChange((e) => {
       "worklet";
-      const id = draggedId.value;
-      if (id < 0) return;
       const arr = blobs.value;
       const idx = arr.findIndex((b) => b.id === id);
       if (idx < 0) return;
@@ -247,68 +275,24 @@ export function AuroraBg() {
     })
     .onEnd((e) => {
       "worklet";
-      const id = draggedId.value;
-      if (id < 0) return;
       const arr = blobs.value;
       const idx = arr.findIndex((b) => b.id === id);
-      if (idx >= 0) {
-        const next = arr.slice();
-        next[idx] = {
-          ...next[idx],
-          vx: e.velocityX / 90,
-          vy: e.velocityY / 90,
-        };
-        blobs.value = next;
-      }
-      draggedId.value = -1;
+      if (idx < 0) return;
+      const next = arr.slice();
+      next[idx] = {
+        ...next[idx],
+        draggedBy: 0,
+        vx: e.velocityX / 90,
+        vy: e.velocityY / 90,
+      };
+      blobs.value = next;
     });
 
   return (
     <GestureDetector gesture={pan}>
-      <Animated.View style={StyleSheet.absoluteFillObject} pointerEvents="box-only">
-        {ids.map((id) => (
-          <BlobView key={id} id={id} blobs={blobs} />
-        ))}
+      <Animated.View style={layoutStyle}>
+        <Animated.View style={visualStyle} pointerEvents="none" />
       </Animated.View>
     </GestureDetector>
   );
-}
-
-interface BlobViewProps {
-  id: number;
-  blobs: Animated.SharedValue<BlobState[]>;
-}
-
-function BlobView({ id, blobs }: BlobViewProps) {
-  const animStyle = useAnimatedStyle(() => {
-    const arr = blobs.value;
-    const b = arr.find((x) => x.id === id);
-    if (!b || !b.alive) return { opacity: 0, width: 0, height: 0 };
-
-    const speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-    const stretch = Math.min(1.3, 1 + speed * 0.03);
-    const squash = Math.max(0.82, 1 - speed * 0.025);
-    const angle = Math.atan2(b.vy, b.vx);
-
-    return {
-      position: "absolute" as const,
-      left: 0,
-      top: 0,
-      width: b.r,
-      height: b.r,
-      borderRadius: b.r / 2,
-      backgroundColor: b.color,
-      opacity: b.opacity,
-      transform: [
-        { translateX: b.x },
-        { translateY: b.y },
-        { rotate: `${angle}rad` },
-        { scaleX: stretch },
-        { scaleY: squash },
-        { rotate: `${-angle}rad` },
-      ],
-    };
-  });
-
-  return <Animated.View style={animStyle} pointerEvents="none" />;
 }

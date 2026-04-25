@@ -17,19 +17,21 @@ const SYMBOL: Record<string, string> = {
   CZK: "Kč",
 };
 
-export function formatPrice(price: number | null | undefined, currency: string = "PLN"): string {
-  if (price === null || price === undefined) return "—";
+export function formatPrice(price: number | string | null | undefined, currency: string = "PLN"): string {
+  if (price === null || price === undefined || price === "") return "—";
+  const num = typeof price === "number" ? price : Number(price);
+  if (!Number.isFinite(num)) return "—";
+
   const cur = (currency || "PLN").toUpperCase();
   const sym = SYMBOL[cur] ?? cur;
-  const rounded = Number.isInteger(price) ? price.toString() : price.toFixed(2);
-  // Symbol after for PLN/SEK/NOK/DKK; before for everything else
+  const rounded = Number.isInteger(num) ? num.toString() : num.toFixed(2);
   if (cur === "PLN" || cur === "SEK" || cur === "NOK" || cur === "DKK" || cur === "CZK") {
     return `${rounded} ${sym}`;
   }
   return `${sym}${rounded}`;
 }
 
-export function formatMaxPrice(price: number | null | undefined, currency: string = "PLN"): string {
-  if (price === null || price === undefined) return "∞";
+export function formatMaxPrice(price: number | string | null | undefined, currency: string = "PLN"): string {
+  if (price === null || price === undefined || price === "") return "∞";
   return formatPrice(price, currency);
 }
