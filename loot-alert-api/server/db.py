@@ -68,7 +68,7 @@ def init_db(app):
                 color             VARCHAR(100),
                 max_price         DECIMAL(10,2),
                 min_price         DECIMAL(10,2) DEFAULT 0,
-                sources           TEXT[] DEFAULT '{olx,vinted,allegro}',
+                sources           TEXT[] DEFAULT '{olx,vinted,ebay}',
                 condition         VARCHAR(20) DEFAULT 'any',
                 is_active         BOOLEAN DEFAULT TRUE,
                 trigger_count     INTEGER DEFAULT 0,

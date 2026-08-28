@@ -28,7 +28,7 @@ export default function NewAlertScreen() {
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [condition, setCondition] = useState<"any" | "new" | "used">("any");
-  const [sources, setSources] = useState(["olx", "ebay", "allegro", "reverb", "discogs"]);
+  const [sources, setSources] = useState(["olx", "vinted", "ebay", "reverb", "discogs"]);
 
   function toggleSource(source: string) {
     setSources((prev) =>
@@ -49,16 +49,19 @@ export default function NewAlertScreen() {
     }
     setLoading(true);
     try {
+      // Normalize Polish-style decimal commas ("12,50") before parseFloat.
+      const parsePrice = (v: string) => parseFloat(v.replace(",", "."));
       await api.post("/api/alerts", {
         name: name.trim(),
         keywords: keywords.trim(),
-        max_price: maxPrice ? parseFloat(maxPrice) : null,
-        min_price: minPrice ? parseFloat(minPrice) : 0,
+        max_price: maxPrice ? parsePrice(maxPrice) : null,
+        min_price: minPrice ? parsePrice(minPrice) : 0,
         size: size.trim() || null,
         color: color.trim() || null,
         condition,
         sources,
       });
+      resetForm();
       router.replace("/(tabs)");
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to create alert";
@@ -66,6 +69,19 @@ export default function NewAlertScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function resetForm() {
+    // The New tab stays mounted; clear it so a second alert starts fresh.
+    setStep(0);
+    setName("");
+    setKeywords("");
+    setMaxPrice("");
+    setMinPrice("");
+    setSize("");
+    setColor("");
+    setCondition("any");
+    setSources(["olx", "vinted", "ebay", "reverb", "discogs"]);
   }
 
   return (

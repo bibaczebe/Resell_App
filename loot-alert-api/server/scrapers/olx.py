@@ -1,16 +1,18 @@
-import requests
-import feedparser
-from server.scrapers import Listing, random_headers
-from server.config import SCRAPER_API_KEY
+"""OLX.pl scraper — unofficial mobile-web JSON API.
+
+OLX sits behind an Akamai/CloudFront WAF that blocks plain python-requests by TLS
+fingerprint (403) regardless of headers or IP. curl_cffi with a Chrome
+impersonation profile passes it directly from residential IPs; set
+SCRAPE_PROXY_URL if the deploy IP gets blocked. The old RSS fallback was removed:
+OLX discontinued those feeds and it was routed through the now-dead ScraperAPI key.
+"""
+
+import logging
+from server.scrapers import Listing, random_headers, browser_get
+
+logger = logging.getLogger(__name__)
 
 OLX_API_BASE = "https://www.olx.pl/api/v1"
-OLX_RSS_BASE = "https://www.olx.pl/oferty"
-
-
-def _scraper_url(target_url: str) -> str:
-    if SCRAPER_API_KEY:
-        return f"http://api.scraperapi.com/?api_key={SCRAPER_API_KEY}&url={target_url}"
-    return target_url
 
 
 def _extract_price(item: dict) -> float | None:
@@ -40,14 +42,6 @@ def _extract_first_photo(item: dict) -> str | None:
 
 def search(keywords: str, max_price: float | None = None, min_price: float = 0,
            condition: str = "any", limit: int = 50) -> list[Listing]:
-    results = _search_api(keywords, max_price, min_price, condition, limit)
-    if not results:
-        results = _search_rss(keywords, limit)
-    return results
-
-
-def _search_api(keywords: str, max_price: float | None, min_price: float,
-                condition: str, limit: int) -> list[Listing]:
     params = {
         "query": keywords,
         "limit": limit,
@@ -63,15 +57,18 @@ def _search_api(keywords: str, max_price: float | None, min_price: float,
         params["filter_enum_state"] = "used"
 
     try:
-        resp = requests.get(
+        resp = browser_get(
             f"{OLX_API_BASE}/offers/",
             params=params,
             headers=random_headers(),
-            timeout=12,
+            timeout=15,
         )
-        resp.raise_for_status()
+        if resp.status_code != 200:
+            logger.warning("OLX search returned %s: %s", resp.status_code, resp.text[:200])
+            return []
         data = resp.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("OLX search failed: %s", e)
         return []
 
     listings = []
@@ -82,47 +79,16 @@ def _search_api(keywords: str, max_price: float | None, min_price: float,
         if min_price and price and price < min_price:
             continue
 
+        listing_id = str(item.get("id", ""))
+        if not listing_id:
+            continue
+
         listings.append(Listing(
-            id=str(item.get("id", "")),
+            id=listing_id,
             title=item.get("title", ""),
             price=price,
             url=item.get("url", ""),
             image_url=_extract_first_photo(item),
-            source="olx",
-        ))
-    return listings
-
-
-def _search_rss(keywords: str, limit: int) -> list[Listing]:
-    slug = keywords.replace(" ", "-").lower()
-    url = f"{OLX_RSS_BASE}/q-{slug}/?search[order]=created_at:desc&view=list"
-    try:
-        feed = feedparser.parse(_scraper_url(url))
-    except Exception:
-        return []
-
-    listings = []
-    for entry in feed.entries[:limit]:
-        title = entry.get("title", "")
-        link = entry.get("link", "")
-        listing_id = link.split("-")[-1].rstrip(".html").rstrip("/") if link else ""
-
-        price = None
-        summary = entry.get("summary", "")
-        import re
-        m = re.search(r"([\d\s]+[,.]?\d*)\s*zł", summary)
-        if m:
-            try:
-                price = float(m.group(1).replace(" ", "").replace(",", "."))
-            except ValueError:
-                pass
-
-        listings.append(Listing(
-            id=listing_id,
-            title=title,
-            price=price,
-            url=link,
-            image_url=None,
             source="olx",
         ))
     return listings

@@ -62,7 +62,7 @@ def create_alert():
     color = data.get("color")
     max_price = data.get("max_price")
     min_price = data.get("min_price", 0)
-    sources = data.get("sources", ["olx", "ebay", "allegro", "reverb", "discogs"])
+    sources = data.get("sources", ["olx", "vinted", "ebay", "reverb", "discogs"])
     condition = data.get("condition", "any")
 
     cur = db.cursor()
@@ -223,7 +223,7 @@ def alert_current_matches(alert_id: int):
     """Fetch listings that currently match the alert (existing offers, not just new ones).
     Runs scrapers on-demand, returns combined + deduplicated results.
     """
-    from server.scrapers import olx, vinted, allegro, ebay, reverb, discogs
+    from server.scrapers import olx, vinted, ebay, reverb, discogs
 
     db = get_db()
     cur = db.cursor()
@@ -240,12 +240,12 @@ def alert_current_matches(alert_id: int):
     max_price = alert["max_price"]
     min_price = alert["min_price"] or 0
     condition = alert["condition"] or "any"
-    sources = alert["sources"] or ["olx", "vinted", "allegro"]
+    sources = alert["sources"] or ["olx", "vinted", "ebay"]
 
+    # Allegro excluded (entitlement-gated); legacy "allegro" sources are skipped.
     scraper_map = {
         "olx": olx.search,
         "vinted": vinted.search,
-        "allegro": allegro.search,
         "ebay": ebay.search,
         "reverb": reverb.search,
         "discogs": discogs.search,

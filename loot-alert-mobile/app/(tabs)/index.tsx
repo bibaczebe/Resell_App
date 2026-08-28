@@ -47,22 +47,22 @@ export default function DashboardScreen() {
         prev.map((a) => (a.id === id ? { ...a, is_active: active } : a))
       );
     } catch {
-      Alert.alert("Błąd", "Nie udało się zmienić statusu alertu");
+      Alert.alert("Error", "Could not change alert status");
     }
   }
 
   async function handleDelete(id: number) {
-    Alert.alert("Usuń alert", "Na pewno chcesz usunąć ten alert?", [
-      { text: "Anuluj", style: "cancel" },
+    Alert.alert("Delete alert", "Are you sure you want to delete this alert?", [
+      { text: "Cancel", style: "cancel" },
       {
-        text: "Usuń",
+        text: "Delete",
         style: "destructive",
         onPress: async () => {
           try {
             await api.del(`/api/alerts/${id}`);
             setAlerts((prev) => prev.filter((a) => a.id !== id));
           } catch {
-            Alert.alert("Błąd", "Nie udało się usunąć alertu");
+            Alert.alert("Error", "Could not delete alert");
           }
         },
       },

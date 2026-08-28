@@ -27,34 +27,21 @@ export async function registerForPushNotifications(): Promise<PushRegistrationRe
       Constants.expoConfig?.extra?.eas?.projectId ??
       Constants.easConfig?.projectId;
 
+    if (!projectId) {
+      // Without a linked EAS project we cannot mint a valid ExponentPushToken.
+      // (The old code uploaded a raw APNs/FCM token, which the backend rejects,
+      // yet reported success — pushes silently never arrived.) Fail honestly.
+      return {
+        ok: false,
+        error: "Push not set up: run `eas init` in loot-alert-mobile, then rebuild.",
+      };
+    }
+
     let tokenData: Notifications.ExpoPushToken;
     try {
-      tokenData = projectId
-        ? await Notifications.getExpoPushTokenAsync({ projectId })
-        : await Notifications.getExpoPushTokenAsync();
+      tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-
-      // Fallback: register a Native Device Push Token instead.
-      // Works in Expo Go without a project id but tokens are device-specific
-      // (FCM/APNs) — backend will deliver via the same Expo push service
-      // because we still call /api/push/register which Expo proxies.
-      if (msg.includes("projectId") || msg.includes("project id")) {
-        try {
-          const native = await Notifications.getDevicePushTokenAsync();
-          if (native?.data) {
-            try {
-              await api.post("/api/push/register", { token: String(native.data), platform: Platform.OS });
-            } catch {}
-            return { ok: true, token: String(native.data) };
-          }
-        } catch {}
-
-        return {
-          ok: false,
-          error: "EAS project ID not configured. Run 'eas init' in loot-alert-mobile once. Until then, native push works on real EAS builds only.",
-        };
-      }
       return { ok: false, error: `Token fetch failed: ${msg}` };
     }
 

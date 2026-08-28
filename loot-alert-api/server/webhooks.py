@@ -13,6 +13,7 @@ Also hosts the eBay Marketplace Account Deletion compliance endpoint
 """
 
 import os
+import hmac
 import hashlib
 import logging
 from flask import Blueprint, request, jsonify
@@ -24,8 +25,12 @@ webhooks_bp = Blueprint("webhooks", __name__)
 
 
 def _verify_webhook(req) -> bool:
-    supplied = req.headers.get("X-Webhook-Secret") or req.args.get("secret")
-    return bool(supplied) and supplied == N8N_WEBHOOK_SECRET
+    # Fail closed: if no secret is configured, the webhook is disabled entirely.
+    if not N8N_WEBHOOK_SECRET:
+        return False
+    # Header only — never accept the secret via query string (it leaks into logs).
+    supplied = req.headers.get("X-Webhook-Secret") or ""
+    return bool(supplied) and hmac.compare_digest(supplied, N8N_WEBHOOK_SECRET)
 
 
 @webhooks_bp.route("/api/webhook/alerts", methods=["GET"])
@@ -134,7 +139,8 @@ def receive_listings():
 
         # Send push
         if tokens:
-            price_str = f"{float(price):.0f} zł" if price else "no price"
+            currency = str(listing.get("currency") or "zł")
+            price_str = f"{float(price):.0f} {currency}" if price else "no price"
             push_title = f"🔔 {alert['name']}"
             push_body = f"{title[:80]} – {price_str} on {source.upper()}"
             dead = send_push_notification(

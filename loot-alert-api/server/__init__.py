@@ -1,12 +1,18 @@
+import os
 import logging
 import traceback
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from server.config import SECRET_KEY, DATABASE_URL, REDIS_URL
 from server.db import init_db, close_db
 
 logging.basicConfig(level=logging.INFO)
+
+# Debug/diagnostic routes leak PII and can burn paid third-party quotas, so they
+# are disabled unless explicitly enabled. Flip DEBUG_ENDPOINTS=true in Railway
+# Variables only while actively diagnosing, then remove it.
+DEBUG_ENDPOINTS_ENABLED = os.environ.get("DEBUG_ENDPOINTS", "").strip().lower() == "true"
 
 
 def create_app() -> Flask:
@@ -17,6 +23,12 @@ def create_app() -> Flask:
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     app.teardown_appcontext(close_db)
+
+    @app.before_request
+    def _guard_debug_routes():
+        # Fail closed: every /api/debug/* route is hidden (404) in production.
+        if request.path.startswith("/api/debug") and not DEBUG_ENDPOINTS_ENABLED:
+            return jsonify({"error": "Not found"}), 404
 
     from server.auth import auth_bp
     from server.alerts import alerts_bp

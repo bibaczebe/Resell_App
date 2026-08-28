@@ -113,7 +113,7 @@ export default function VerifyScreen() {
           {digits.map((d, i) => (
             <TextInput
               key={i}
-              ref={(r) => (inputs.current[i] = r)}
+              ref={(r) => { inputs.current[i] = r; }}
               style={[styles.codeInput, d ? styles.codeInputFilled : null]}
               value={d}
               onChangeText={(v) => handleChange(i, v)}

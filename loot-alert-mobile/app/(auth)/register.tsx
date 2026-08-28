@@ -34,9 +34,13 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      await register(normalizedEmail, password);
+      const { requiresVerification } = await register(normalizedEmail, password);
       registerForPushNotifications().catch(() => {});
-      router.replace("/(tabs)");
+      if (requiresVerification) {
+        router.replace({ pathname: "/(auth)/verify", params: { email: normalizedEmail } });
+      } else {
+        router.replace("/(tabs)");
+      }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Sign-up failed");
     } finally {

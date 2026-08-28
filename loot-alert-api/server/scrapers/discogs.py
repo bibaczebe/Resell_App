@@ -60,11 +60,13 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             price = None
             currency = "EUR"
 
-            # Fetch lowest marketplace price for the release
+            # Fetch lowest marketplace price for the release.
+            # Discogs does NOT support curr_abbr=PLN (422 Invalid currency
+            # abbreviation) — only USD/GBP/EUR/CAD/AUD/JPY/CHF/MXN/BRL/NZD/SEK/ZAR.
             try:
                 price_resp = requests.get(
                     f"{DISCOGS_API}/marketplace/stats/{release_id}",
-                    params={"curr_abbr": "PLN"},
+                    params={"curr_abbr": "EUR"},
                     headers={
                         "User-Agent": "LootAlert/1.0",
                         "Accept": "application/json",

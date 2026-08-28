@@ -1,4 +1,5 @@
 import os
+import hmac
 import secrets
 import datetime
 import logging
@@ -9,8 +10,10 @@ from server.config import RESEND_API_KEY, SCRAPER_API_KEY, STRIPE_SECRET_KEY
 
 logger = logging.getLogger(__name__)
 
+# No in-code password fallback: if ADMIN_PASSWORD is unset, admin login is
+# disabled entirely (fail closed) rather than defaulting to a known credential.
 ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin").strip()
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin56519562").strip()
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "").strip()
 
 admin_bp = Blueprint("admin", __name__)
 
@@ -50,7 +53,13 @@ def admin_login():
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
 
-    if username != ADMIN_USERNAME or password != ADMIN_PASSWORD:
+    if not ADMIN_PASSWORD:
+        logger.warning("Admin login attempted but ADMIN_PASSWORD is not configured")
+        return jsonify({"error": "Admin login disabled"}), 503
+
+    # Constant-time comparison to avoid leaking credentials via timing.
+    ok = hmac.compare_digest(username, ADMIN_USERNAME) and hmac.compare_digest(password, ADMIN_PASSWORD)
+    if not ok:
         return jsonify({"error": "Invalid credentials"}), 401
 
     token = secrets.token_urlsafe(32)

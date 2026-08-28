@@ -50,7 +50,10 @@ RESEND_FROM_EMAIL = _clean_env("RESEND_FROM_EMAIL", "LootAlert <onboarding@resen
 # Use during MVP / testing while no verified domain is set up in Resend.
 DEV_AUTO_VERIFY = _clean_env("DEV_AUTO_VERIFY", "false").lower() == "true"
 
-N8N_WEBHOOK_SECRET = _clean_env("N8N_WEBHOOK_SECRET", "lootalert-n8n-2026")
+# No in-code default: webhook routes fail closed (503) when this is unset,
+# so a leaked/guessed default can never grant access. Set a strong random value
+# in Railway Variables if you actually use the external-scraper webhook.
+N8N_WEBHOOK_SECRET = _clean_env("N8N_WEBHOOK_SECRET")
 
 EBAY_APP_ID = _clean_env("EBAY_APP_ID")
 EBAY_CERT_ID = _clean_env("EBAY_CERT_ID")
