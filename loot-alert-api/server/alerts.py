@@ -323,14 +323,18 @@ def top_deals():
 
     def work(a):
         res = _scrape_alert(a, limit=20)
-        deals.score(res)
-        picked = []
+        deals.score(res)  # sets discount_pct + deal_tier
         for r in res:
-            if r.get("deal_tier"):
-                r["alert_id"] = a["id"]
-                r["alert_name"] = a["name"]
-                picked.append(r)
-        return picked
+            r["alert_id"] = a["id"]
+            r["alert_name"] = a["name"]
+        # Prefer below-median finds; if the market was too thin to compute a
+        # median, still surface the cheapest few so the automatic feed is useful.
+        below = [r for r in res if r.get("discount_pct") is not None]
+        if below:
+            return below
+        priced = sorted((r for r in res if r.get("price_pln") is not None),
+                        key=lambda x: x["price_pln"])
+        return priced[:5]
 
     all_deals = []
     with ThreadPoolExecutor(max_workers=4) as ex:
