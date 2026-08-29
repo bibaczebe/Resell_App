@@ -20,7 +20,8 @@ def check_password(password: str, hashed: str) -> bool:
 
 def create_token(user_id: int) -> str:
     payload = {
-        "sub": user_id,
+        # sub MUST be a string: PyJWT >= 2.10 rejects a non-string sub on decode.
+        "sub": str(user_id),
         "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=JWT_EXPIRE_HOURS),
         "iat": datetime.datetime.utcnow(),
     }
@@ -48,7 +49,11 @@ def require_auth(f):
         payload = decode_token(token)
         if payload is None:
             return jsonify({"error": "Invalid or expired token"}), 401
-        request.user_id = payload["sub"]
+        # sub is stored as a string (see create_token); convert back to int for DB use.
+        try:
+            request.user_id = int(payload["sub"])
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "Invalid token"}), 401
         return f(*args, **kwargs)
 
     return decorated
