@@ -19,6 +19,16 @@ ACCESSORY_DENYLIST = {
     # English
     "case", "cover", "screen", "lcd", "digitizer", "flex", "wallet",
     "protector", "parts", "replacement", "charger", "bumper",
+    # Other EU languages (Vinted is pan-European — cases show up as skal/obal/…)
+    "skal", "fodral",                      # SE
+    "obal", "kryt", "pouzdro",             # CZ/SK
+    "hoesje", "oplader",                   # NL
+    "coque", "housse", "chargeur",         # FR
+    "funda", "carcasa", "cargador",        # ES
+    "custodia", "pellicola", "caricatore",  # IT
+    "hülle", "huelle", "schutzhülle", "panzerglas", "ladegerät",  # DE
+    "capa", "capinha",                     # PT
+    "dėklas",                              # LT
 }
 
 # Keyword tokens that indicate a music/vinyl/instrument hunt. Reverb & Discogs
