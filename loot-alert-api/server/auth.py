@@ -233,3 +233,33 @@ def me():
         data["alerts_limit"] = None
         data["alerts_remaining"] = None
     return jsonify(data), 200
+
+
+@auth_bp.route("/api/auth/me", methods=["DELETE"])
+@require_auth
+def delete_account():
+    """Hard-delete the account and ALL associated data (App Store 5.1.1(v)).
+    Not a soft deactivate: user row + alerts + push tokens + verifications +
+    notification history are removed and the Stripe subscription is cancelled."""
+    db = get_db()
+    cur = db.cursor()
+
+    # Best-effort: cancel any active Stripe subscription so we don't keep billing.
+    cur.execute("SELECT stripe_subscription_id FROM users WHERE id = %s", (request.user_id,))
+    row = cur.fetchone()
+    sub_id = row.get("stripe_subscription_id") if row else None
+    if sub_id:
+        try:
+            import stripe
+            from server.config import STRIPE_SECRET_KEY
+            stripe.api_key = STRIPE_SECRET_KEY
+            stripe.Subscription.cancel(sub_id)
+        except Exception:
+            pass
+
+    # notification_log has no ON DELETE CASCADE, so remove it first; alerts,
+    # push_tokens, email_verifications, seen_listings cascade from the user/alert.
+    cur.execute("DELETE FROM notification_log WHERE user_id = %s", (request.user_id,))
+    cur.execute("DELETE FROM users WHERE id = %s", (request.user_id,))
+    db.commit()
+    return jsonify({"message": "Account and all associated data deleted"}), 200

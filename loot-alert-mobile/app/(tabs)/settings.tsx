@@ -9,7 +9,7 @@ import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { PricingSheet } from "../../components/PricingSheet";
-import { fetchMe, logout } from "../../lib/auth";
+import { fetchMe, logout, deleteAccount } from "../../lib/auth";
 import { registerForPushNotifications } from "../../lib/notifications";
 import { api } from "../../lib/api";
 import { AuroraBg } from "../../components/ui/AuroraBg";
@@ -86,6 +86,41 @@ export default function SettingsScreen() {
         },
       },
     ]);
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      "Delete account",
+      "This permanently deletes your account and all data — alerts, saved searches, notification history and subscription. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Are you absolutely sure?",
+              "There is no way to recover your account afterwards.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Delete permanently",
+                  style: "destructive",
+                  onPress: async () => {
+                    try {
+                      await deleteAccount();
+                      router.replace("/(auth)/login");
+                    } catch (e: unknown) {
+                      Alert.alert("Error", e instanceof Error ? e.message : "Could not delete account");
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
   }
 
   function handleVersionTap() {
@@ -237,6 +272,11 @@ export default function SettingsScreen() {
           <Feather name="log-out" size={16} color={Colors.error} />
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteAccountBtn} onPress={handleDeleteAccount}>
+          <Feather name="trash-2" size={14} color={Colors.textMuted} />
+          <Text style={styles.deleteAccountText}>Delete account</Text>
+        </TouchableOpacity>
       </MotiView>
 
       <PricingSheet visible={showPricing} onClose={() => { setShowPricing(false); loadUser(); }} />
@@ -289,4 +329,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14, marginTop: 8,
   },
   logoutText: { color: Colors.error, fontWeight: "600", fontSize: 15 },
+  deleteAccountBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    paddingVertical: 12, marginTop: 12,
+  },
+  deleteAccountText: { color: Colors.textMuted, fontWeight: "500", fontSize: 13 },
 });

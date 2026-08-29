@@ -51,6 +51,11 @@ export async function logout(): Promise<void> {
   await clearToken();
 }
 
+export async function deleteAccount(): Promise<void> {
+  await api.del("/api/auth/me");
+  await clearToken();
+}
+
 export async function isLoggedIn(): Promise<boolean> {
   const token = await getToken();
   return token !== null;
