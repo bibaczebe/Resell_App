@@ -297,11 +297,68 @@ def alert_current_matches(alert_id: int):
     }), 200
 
 
+# Curated "trending flips" the engine scans for everyone, so the premium feed is
+# valuable even before a user has set up their own alerts — the app's automatic-
+# discovery core, not just what the user typed.
+CURATED_QUERIES = [
+    {"kw": "iphone 13", "max": 2500}, {"kw": "airpods pro", "max": 900},
+    {"kw": "ps5", "max": 2500}, {"kw": "nike air max", "max": 600},
+    {"kw": "lego star wars", "max": 900}, {"kw": "dyson", "max": 1600},
+    {"kw": "gopro", "max": 1500}, {"kw": "macbook air", "max": 4500},
+    {"kw": "carhartt", "max": 400}, {"kw": "levis 501", "max": 250},
+]
+
+
+def _curated_deals() -> list[dict]:
+    """Trending below-market finds across popular reseller categories, cached in
+    Redis (30 min) so it's one shared scan for all users, not per-request."""
+    import json
+    from concurrent.futures import ThreadPoolExecutor
+    from server.db import get_redis
+    from server import deals
+
+    try:
+        redis_client = get_redis()
+        cached = redis_client.get("curated_deals_v1")
+        if cached:
+            return json.loads(cached)
+    except Exception:
+        redis_client = None
+
+    def work(c):
+        alert = {"keywords": c["kw"], "max_price": c["max"], "min_price": 0,
+                 "condition": "any", "sources": ["olx", "vinted", "ebay"],
+                 "exclude_keywords": None, "color": None, "size": None}
+        res = _scrape_alert(alert, limit=15)
+        deals.score(res)
+        picked = []
+        for r in res:
+            if r.get("discount_pct") is not None:
+                r["alert_id"] = None
+                r["alert_name"] = f"Trending · {c['kw']}"
+                r["curated"] = True
+                picked.append(r)
+        return sorted(picked, key=lambda z: -(z.get("discount_pct") or 0))[:4]
+
+    out = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for chunk in ex.map(work, CURATED_QUERIES):
+            out.extend(chunk)
+    out.sort(key=lambda z: -(z.get("discount_pct") or 0))
+    out = out[:20]
+    try:
+        if redis_client:
+            redis_client.setex("curated_deals_v1", 1800, json.dumps(out))
+    except Exception:
+        pass
+    return out
+
+
 @alerts_bp.route("/api/deals/top", methods=["GET"])
 @require_auth
 def top_deals():
-    """PREMIUM: the best deals the engine finds across ALL the user's active
-    alerts, ranked by how far below market (median) they are — no typing needed."""
+    """PREMIUM: best deals across the user's alerts AND curated trending
+    categories, ranked by how far below market — the app's automatic discovery."""
     from concurrent.futures import ThreadPoolExecutor
     from server import deals
 
@@ -318,17 +375,14 @@ def top_deals():
         (request.user_id,),
     )
     alerts = cur.fetchall()
-    if not alerts:
-        return jsonify({"deals": [], "count": 0}), 200
 
     def work(a):
         res = _scrape_alert(a, limit=20)
-        deals.score(res)  # sets discount_pct + deal_tier
+        deals.score(res)
         for r in res:
             r["alert_id"] = a["id"]
             r["alert_name"] = a["name"]
-        # Prefer below-median finds; if the market was too thin to compute a
-        # median, still surface the cheapest few so the automatic feed is useful.
+            r["curated"] = False
         below = [r for r in res if r.get("discount_pct") is not None]
         if below:
             return below
@@ -337,9 +391,25 @@ def top_deals():
         return priced[:5]
 
     all_deals = []
-    with ThreadPoolExecutor(max_workers=4) as ex:
-        for chunk in ex.map(work, list(alerts)):
-            all_deals.extend(chunk)
+    if alerts:
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            for chunk in ex.map(work, list(alerts)):
+                all_deals.extend(chunk)
 
-    all_deals.sort(key=lambda x: -(x.get("discount_pct") or 0))
-    return jsonify({"deals": all_deals[:25], "count": len(all_deals)}), 200
+    # Always add curated trending finds so the feed shows "more" than the user's
+    # own alerts (and works for users with no alerts yet).
+    try:
+        all_deals.extend(_curated_deals())
+    except Exception:
+        pass
+
+    # Dedupe (a curated find may overlap a user's alert) keeping the best discount.
+    seen, deduped = set(), []
+    for d in sorted(all_deals, key=lambda x: -(x.get("discount_pct") or 0)):
+        key = f"{d.get('source')}:{d.get('id')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(d)
+
+    return jsonify({"deals": deduped[:30], "count": len(deduped)}), 200
