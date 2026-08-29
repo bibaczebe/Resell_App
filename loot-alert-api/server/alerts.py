@@ -20,7 +20,7 @@ def list_alerts():
     cur = db.cursor()
     cur.execute(
         """SELECT id, name, keywords, size, color, max_price, min_price,
-                  sources, condition, is_active, trigger_count, last_triggered_at, created_at
+                  sources, condition, exclude_keywords, is_active, trigger_count, last_triggered_at, created_at
            FROM alerts WHERE user_id = %s ORDER BY created_at DESC""",
         (request.user_id,),
     )
@@ -62,15 +62,18 @@ def create_alert():
     color = data.get("color")
     max_price = data.get("max_price")
     min_price = data.get("min_price", 0)
-    sources = data.get("sources", ["olx", "vinted", "ebay", "reverb", "discogs"])
+    # Music-only sources (reverb/discogs) are opt-in — they're pure noise for
+    # phones/sneakers/toys. General marketplaces are the default.
+    sources = data.get("sources", ["olx", "vinted", "ebay"])
     condition = data.get("condition", "any")
+    exclude_keywords = (data.get("exclude_keywords") or "").strip() or None
 
     cur = db.cursor()
     cur.execute(
         """INSERT INTO alerts (user_id, name, keywords, size, color, max_price, min_price,
-                               sources, condition)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
-        (request.user_id, name, keywords, size, color, max_price, min_price, sources, condition),
+                               sources, condition, exclude_keywords)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id""",
+        (request.user_id, name, keywords, size, color, max_price, min_price, sources, condition, exclude_keywords),
     )
     alert_id = cur.fetchone()["id"]
     cur.execute(
@@ -88,7 +91,7 @@ def get_alert(alert_id: int):
     cur = db.cursor()
     cur.execute(
         """SELECT id, name, keywords, size, color, max_price, min_price,
-                  sources, condition, is_active, trigger_count, last_triggered_at, created_at
+                  sources, condition, exclude_keywords, is_active, trigger_count, last_triggered_at, created_at
            FROM alerts WHERE id = %s AND user_id = %s""",
         (alert_id, request.user_id),
     )
@@ -108,7 +111,7 @@ def update_alert(alert_id: int):
         return jsonify({"error": "Alert not found"}), 404
 
     data = request.get_json(silent=True) or {}
-    allowed = ["name", "keywords", "size", "color", "max_price", "min_price", "sources", "condition", "is_active"]
+    allowed = ["name", "keywords", "size", "color", "max_price", "min_price", "sources", "condition", "is_active", "exclude_keywords"]
     updates = {k: v for k, v in data.items() if k in allowed}
     if not updates:
         return jsonify({"error": "No valid fields to update"}), 400
@@ -224,11 +227,13 @@ def alert_current_matches(alert_id: int):
     Runs scrapers on-demand, returns combined + deduplicated results.
     """
     from server.scrapers import olx, vinted, ebay, reverb, discogs
+    from server import matching
+    from server.fx import to_pln
 
     db = get_db()
     cur = db.cursor()
     cur.execute(
-        """SELECT id, keywords, size, color, max_price, min_price, sources, condition
+        """SELECT id, keywords, size, color, max_price, min_price, sources, condition, exclude_keywords
            FROM alerts WHERE id = %s AND user_id = %s""",
         (alert_id, request.user_id),
     )
@@ -241,6 +246,9 @@ def alert_current_matches(alert_id: int):
     min_price = alert["min_price"] or 0
     condition = alert["condition"] or "any"
     sources = alert["sources"] or ["olx", "vinted", "ebay"]
+    exclude_keywords = alert.get("exclude_keywords")
+    max_pln = float(max_price) if max_price else None
+    min_pln = float(min_price) if min_price else 0
 
     # Allegro excluded (entitlement-gated); legacy "allegro" sources are skipped.
     scraper_map = {
@@ -256,6 +264,9 @@ def alert_current_matches(alert_id: int):
         search_fn = scraper_map.get(source)
         if not search_fn:
             continue
+        # Music-only sources (Reverb/Discogs) only for music keywords.
+        if not matching.source_allowed(source, keywords, sources):
+            continue
         try:
             items = search_fn(
                 keywords=keywords,
@@ -264,24 +275,32 @@ def alert_current_matches(alert_id: int):
                 condition=condition,
                 limit=25,
             )
-            for it in items:
-                # filter by extra keyword (size field)
-                if alert["size"] and alert["size"].lower() not in it.title.lower():
-                    continue
-                if alert["color"] and alert["color"].lower() not in it.title.lower():
-                    continue
-                results.append({
-                    "id": it.id,
-                    "title": it.title,
-                    "price": it.price,
-                    "currency": it.currency,
-                    "url": it.url,
-                    "image_url": it.image_url,
-                    "source": it.source,
-                })
         except Exception:
-            pass
+            continue
+        for it in items:
+            # SAME relevance gate as the push path (keywords + accessory denylist
+            # + excludes + colour/size). Previously this endpoint applied only a
+            # size/color check, which let raw junk (vinyl, cases, parts) through.
+            if not matching.matches(it.title, keywords, alert["color"],
+                                    alert["size"], it.size, exclude_keywords):
+                continue
+            price_pln = to_pln(it.price, it.currency)
+            if price_pln is not None:
+                if max_pln and price_pln > max_pln:
+                    continue
+                if min_pln and price_pln < min_pln:
+                    continue
+            results.append({
+                "id": it.id,
+                "title": it.title,
+                "price": it.price,
+                "currency": it.currency,
+                "price_pln": price_pln,
+                "url": it.url,
+                "image_url": it.image_url,
+                "source": it.source,
+            })
 
-    # sort by price ascending (cheapest first)
-    results.sort(key=lambda x: (x["price"] is None, x["price"] or 0))
+    # sort by PLN-normalized price ascending (cheapest real deal first)
+    results.sort(key=lambda x: (x["price_pln"] is None, x["price_pln"] or 0))
     return jsonify({"matches": results, "count": len(results)}), 200

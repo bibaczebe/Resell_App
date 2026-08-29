@@ -12,8 +12,8 @@ const SOURCES = [
   { id: "olx", label: "OLX", desc: "Polish classifieds – everything from cars to clothes" },
   { id: "vinted", label: "Vinted", desc: "Fashion & second-hand across Europe" },
   { id: "ebay", label: "eBay", desc: "Global – US, UK, DE, PL marketplaces" },
-  { id: "reverb", label: "Reverb", desc: "Musical instruments worldwide" },
-  { id: "discogs", label: "Discogs", desc: "Vinyl, CDs, music collectibles" },
+  { id: "reverb", label: "Reverb", desc: "Music gear only – add for instruments/audio" },
+  { id: "discogs", label: "Discogs", desc: "Music only – add for vinyl, CDs, records" },
 ];
 
 export function Step3Sources({ sources, onToggleSource }: Props) {

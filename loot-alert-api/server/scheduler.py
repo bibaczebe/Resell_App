@@ -1,4 +1,3 @@
-import re
 import logging
 import psycopg2
 import psycopg2.extras
@@ -7,7 +6,8 @@ from server.config import (
     DATABASE_URL, FREE_POLL_INTERVAL_MINUTES, PREMIUM_POLL_INTERVAL_MINUTES
 )
 from server.scrapers import Listing
-from server import scrapers
+from server import matching
+from server.fx import to_pln
 
 logger = logging.getLogger(__name__)
 
@@ -99,25 +99,6 @@ def _record_notification(conn, user_id: int, alert_id: int, listing: Listing):
     conn.commit()
 
 
-def _word_in(word: str, text: str) -> bool:
-    """Whole-word (or numeric-token) substring match, case-insensitive."""
-    return re.search(rf"(?<!\w){re.escape(word)}(?!\w)", text) is not None
-
-
-def _check_keyword_match(listing: Listing, keywords: str, color: str | None, size: str | None) -> bool:
-    title_lower = listing.title.lower()
-    words = [w for w in keywords.lower().split() if w]
-    # Require ALL keyword tokens to appear (marketplace search is fuzzy; this is
-    # the real relevance gate). any() previously matched on a single shared word.
-    if words and not all(_word_in(w, title_lower) for w in words):
-        return False
-    if color and not _word_in(color.lower(), title_lower):
-        return False
-    if size and listing.size and size.lower() not in listing.size.lower():
-        return False
-    return True
-
-
 def _poll_alerts(plan_filter: str):
     from server.db import get_redis
     from server.push import send_push_notification, get_user_tokens, cleanup_dead_tokens
@@ -140,7 +121,7 @@ def _poll_alerts(plan_filter: str):
         cur.execute(
             """SELECT a.id, a.user_id, a.name, a.keywords, a.size, a.color,
                       a.max_price, a.min_price, a.sources, a.condition,
-                      u.plan
+                      a.exclude_keywords, u.plan
                FROM alerts a
                JOIN users u ON u.id = a.user_id
                WHERE a.is_active = TRUE AND u.plan = ANY(%s)""",
@@ -192,6 +173,9 @@ def _process_alert(conn, redis_client, alert, scraper_map,
     user_id = alert["user_id"]
     keywords = alert["keywords"]
     sources = alert["sources"] or ["olx", "vinted", "ebay"]
+    exclude_keywords = alert.get("exclude_keywords")
+    max_pln = float(alert["max_price"]) if alert["max_price"] else None
+    min_pln = float(alert["min_price"]) if alert["min_price"] else 0
 
     lock_key = f"alert_poll:{alert_id}"
     try:
@@ -207,6 +191,9 @@ def _process_alert(conn, redis_client, alert, scraper_map,
         search_fn = scraper_map.get(source)
         if not search_fn:
             continue
+        # Skip music-only sources (Reverb/Discogs) for non-music keywords.
+        if not matching.source_allowed(source, keywords, sources):
+            continue
         try:
             results = search_fn(
                 keywords=keywords,
@@ -220,8 +207,16 @@ def _process_alert(conn, redis_client, alert, scraper_map,
         for listing in results:
             if not listing.id:
                 continue
-            if not _check_keyword_match(listing, keywords, alert["color"], alert["size"]):
+            if not matching.matches(listing.title, keywords, alert["color"],
+                                    alert["size"], listing.size, exclude_keywords):
                 continue
+            # Currency-normalized price gate (alert bounds are PLN).
+            price_pln = to_pln(listing.price, listing.currency)
+            if price_pln is not None:
+                if max_pln and price_pln > max_pln:
+                    continue
+                if min_pln and price_pln < min_pln:
+                    continue
             matched.append((source, listing))
 
     if not matched:

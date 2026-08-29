@@ -70,11 +70,19 @@ def init_db(app):
                 min_price         DECIMAL(10,2) DEFAULT 0,
                 sources           TEXT[] DEFAULT '{olx,vinted,ebay}',
                 condition         VARCHAR(20) DEFAULT 'any',
+                exclude_keywords  VARCHAR(500),
                 is_active         BOOLEAN DEFAULT TRUE,
                 trigger_count     INTEGER DEFAULT 0,
                 last_triggered_at TIMESTAMP,
                 created_at        TIMESTAMP DEFAULT NOW()
             );
+
+            -- Migration for existing DBs without exclude_keywords
+            DO $$
+            BEGIN
+                ALTER TABLE alerts ADD COLUMN IF NOT EXISTS exclude_keywords VARCHAR(500);
+            EXCEPTION WHEN OTHERS THEN NULL;
+            END $$;
 
             CREATE TABLE IF NOT EXISTS seen_listings (
                 id         SERIAL PRIMARY KEY,

@@ -28,7 +28,7 @@ export default function NewAlertScreen() {
   const [size, setSize] = useState("");
   const [color, setColor] = useState("");
   const [condition, setCondition] = useState<"any" | "new" | "used">("any");
-  const [sources, setSources] = useState(["olx", "vinted", "ebay", "reverb", "discogs"]);
+  const [sources, setSources] = useState(["olx", "vinted", "ebay"]);
 
   function toggleSource(source: string) {
     setSources((prev) =>
@@ -81,7 +81,7 @@ export default function NewAlertScreen() {
     setSize("");
     setColor("");
     setCondition("any");
-    setSources(["olx", "vinted", "ebay", "reverb", "discogs"]);
+    setSources(["olx", "vinted", "ebay"]);
   }
 
   return (
