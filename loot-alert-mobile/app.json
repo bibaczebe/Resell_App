@@ -39,6 +39,13 @@
         }
       ]
     ],
-    "scheme": "lootalert"
+    "scheme": "lootalert",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "45315f30-725e-4ec3-a6db-055d88731655"
+      }
+    },
+    "owner": "bibaczebe"
   }
 }
