@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { MotiView } from "moti";
 import { Colors } from "../../constants/colors";
 import { login } from "../../lib/auth";
@@ -11,7 +11,8 @@ import { registerForPushNotifications } from "../../lib/notifications";
 import { AuroraBg } from "../../components/ui/AuroraBg";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const params = useLocalSearchParams<{ email?: string }>();
+  const [email, setEmail] = useState(params.email ?? "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

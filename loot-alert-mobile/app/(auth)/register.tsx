@@ -16,9 +16,11 @@ export default function RegisterScreen() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [emailExists, setEmailExists] = useState(false);
 
   async function handleRegister() {
     setError("");
+    setEmailExists(false);
     if (!email || !password) {
       setError("Fill in all fields");
       return;
@@ -42,10 +44,20 @@ export default function RegisterScreen() {
         router.replace("/(tabs)");
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Sign-up failed");
+      const msg = e instanceof Error ? e.message : "Sign-up failed";
+      if (/already registered|already exists/i.test(msg)) {
+        setEmailExists(true);
+        setError("This email already has an account. Sign in instead.");
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
+  }
+
+  function goToLogin() {
+    router.replace({ pathname: "/(auth)/login", params: { email: email.trim().toLowerCase() } });
   }
 
   return (
@@ -93,13 +105,19 @@ export default function RegisterScreen() {
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
-          <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Create account</Text>
-            )}
-          </TouchableOpacity>
+          {emailExists ? (
+            <TouchableOpacity style={styles.button} onPress={goToLogin}>
+              <Text style={styles.buttonText}>Sign in instead</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Create account</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity onPress={() => router.back()} style={styles.link}>
             <Text style={styles.linkText}>Have an account? <Text style={{ color: Colors.violetLight }}>Sign in</Text></Text>
