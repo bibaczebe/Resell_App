@@ -16,7 +16,7 @@ export default function TabLayout() {
         },
         tabBarActiveTintColor: Colors.violetLight,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarLabelStyle: { fontSize: 11, marginBottom: 4 },
+        tabBarLabelStyle: { fontSize: 10, marginBottom: 4 },
       }}
     >
       <Tabs.Screen
@@ -27,10 +27,24 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="deals"
+        options={{
+          title: "Deals",
+          tabBarIcon: ({ color, size }) => <Feather name="trending-up" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="new"
         options={{
-          title: "New alert",
+          title: "New",
           tabBarIcon: ({ color, size }) => <Feather name="plus-circle" size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="assistant"
+        options={{
+          title: "AI",
+          tabBarIcon: ({ color, size }) => <Feather name="message-circle" size={size} color={color} />,
         }}
       />
       <Tabs.Screen

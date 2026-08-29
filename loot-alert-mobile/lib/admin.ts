@@ -1,6 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://api.lootalert.app";
+const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://resellapp-production.up.railway.app";
 const ADMIN_TOKEN_KEY = "admin_token";
 
 export async function getAdminToken(): Promise<string | null> {
@@ -83,5 +83,11 @@ export const adminApi = {
     adminRequest<{ message: string }>(`/api/admin/users/${id}/plan`, {
       method: "PATCH",
       body: JSON.stringify({ plan }),
+    }),
+
+  setVerified: (id: number, verified: boolean) =>
+    adminRequest<{ message: string }>(`/api/admin/users/${id}/verify`, {
+      method: "PATCH",
+      body: JSON.stringify({ verified }),
     }),
 };

@@ -91,6 +91,16 @@ export default function AdminDashboard() {
     }
   }
 
+  async function toggleVerified(user: AdminUser) {
+    const next = !user.is_verified;
+    try {
+      await adminApi.setVerified(user.id, next);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_verified: next } : u)));
+    } catch (e: unknown) {
+      Alert.alert("Error", e instanceof Error ? e.message : "Failed");
+    }
+  }
+
   async function handleLogout() {
     await clearAdminToken();
     router.replace("/admin/login");
@@ -217,12 +227,15 @@ export default function AdminDashboard() {
               </View>
 
               <View style={styles.userActions}>
-                {item.is_verified && (
-                  <View style={styles.verifiedChip}>
-                    <Feather name="check" size={10} color={Colors.success} />
-                    <Text style={styles.verifiedChipText}>verified</Text>
-                  </View>
-                )}
+                <TouchableOpacity
+                  onPress={() => toggleVerified(item)}
+                  style={[styles.verifiedChip, !item.is_verified && styles.unverifiedChip]}
+                >
+                  <Feather name={item.is_verified ? "check" : "x"} size={10} color={item.is_verified ? Colors.success : Colors.textMuted} />
+                  <Text style={[styles.verifiedChipText, !item.is_verified && { color: Colors.textMuted }]}>
+                    {item.is_verified ? "verified" : "unverified"}
+                  </Text>
+                </TouchableOpacity>
                 <View style={{ flex: 1 }} />
                 <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
                   <Feather name="trash-2" size={14} color={Colors.error} />
@@ -315,6 +328,7 @@ const styles = StyleSheet.create({
     borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2,
   },
   verifiedChipText: { color: Colors.success, fontSize: 10, fontWeight: "700" },
+  unverifiedChip: { backgroundColor: "rgba(255,255,255,0.05)" },
   deleteBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
     backgroundColor: "rgba(239,68,68,0.12)",
