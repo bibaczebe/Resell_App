@@ -118,6 +118,22 @@ def admin_set_plan(user_id: int):
     return jsonify({"message": f"Plan set to {plan} for {row['email']}"}), 200
 
 
+@admin_bp.route("/api/admin/users/<int:user_id>/verify", methods=["PATCH"])
+@require_admin
+def admin_set_verified(user_id: int):
+    data = request.get_json(silent=True) or {}
+    verified = bool(data.get("verified", True))
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("UPDATE users SET is_verified = %s WHERE id = %s RETURNING email",
+                (verified, user_id))
+    row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "User not found"}), 404
+    db.commit()
+    return jsonify({"message": f"{'Verified' if verified else 'Unverified'} {row['email']}"}), 200
+
+
 def _scraperapi_usage() -> dict:
     if not SCRAPER_API_KEY:
         return {"error": "SCRAPER_API_KEY not set"}

@@ -220,15 +220,61 @@ def price_estimate():
     }), 200
 
 
-@alerts_bp.route("/api/alerts/<int:alert_id>/current-matches", methods=["GET"])
-@require_auth
-def alert_current_matches(alert_id: int):
-    """Fetch listings that currently match the alert (existing offers, not just new ones).
-    Runs scrapers on-demand, returns combined + deduplicated results.
-    """
+def _scrape_alert(alert, limit: int = 25) -> list[dict]:
+    """Run an alert's sources through the shared relevance gate + PLN price gate.
+    Returns result dicts (with price_pln). Shared by current-matches and top-deals.
+    No DB access, so it is safe to call from worker threads."""
     from server.scrapers import olx, vinted, ebay, reverb, discogs
     from server import matching
     from server.fx import to_pln
+
+    keywords = alert["keywords"]
+    max_price = alert["max_price"]
+    min_price = alert["min_price"] or 0
+    condition = alert["condition"] or "any"
+    sources = alert["sources"] or ["olx", "vinted", "ebay"]
+    exclude_keywords = alert.get("exclude_keywords")
+    max_pln = float(max_price) if max_price else None
+    min_pln = float(min_price) if min_price else 0
+
+    scraper_map = {
+        "olx": olx.search, "vinted": vinted.search, "ebay": ebay.search,
+        "reverb": reverb.search, "discogs": discogs.search,
+    }
+
+    results = []
+    for source in sources:
+        search_fn = scraper_map.get(source)
+        if not search_fn or not matching.source_allowed(source, keywords, sources):
+            continue
+        try:
+            items = search_fn(keywords=keywords, max_price=max_pln,
+                              min_price=float(min_pln), condition=condition, limit=limit)
+        except Exception:
+            continue
+        for it in items:
+            if not matching.matches(it.title, keywords, alert["color"],
+                                    alert["size"], it.size, exclude_keywords):
+                continue
+            price_pln = to_pln(it.price, it.currency)
+            if price_pln is not None:
+                if max_pln and price_pln > max_pln:
+                    continue
+                if min_pln and price_pln < min_pln:
+                    continue
+            results.append({
+                "id": it.id, "title": it.title, "price": it.price,
+                "currency": it.currency, "price_pln": price_pln,
+                "url": it.url, "image_url": it.image_url, "source": it.source,
+            })
+    return results
+
+
+@alerts_bp.route("/api/alerts/<int:alert_id>/current-matches", methods=["GET"])
+@require_auth
+def alert_current_matches(alert_id: int):
+    """Listings that currently match the alert, filtered + PLN-normalized + deal-scored."""
+    from server import deals
 
     db = get_db()
     cur = db.cursor()
@@ -241,66 +287,55 @@ def alert_current_matches(alert_id: int):
     if not alert:
         return jsonify({"error": "Alert not found"}), 404
 
-    keywords = alert["keywords"]
-    max_price = alert["max_price"]
-    min_price = alert["min_price"] or 0
-    condition = alert["condition"] or "any"
-    sources = alert["sources"] or ["olx", "vinted", "ebay"]
-    exclude_keywords = alert.get("exclude_keywords")
-    max_pln = float(max_price) if max_price else None
-    min_pln = float(min_price) if min_price else 0
-
-    # Allegro excluded (entitlement-gated); legacy "allegro" sources are skipped.
-    scraper_map = {
-        "olx": olx.search,
-        "vinted": vinted.search,
-        "ebay": ebay.search,
-        "reverb": reverb.search,
-        "discogs": discogs.search,
-    }
-
-    results = []
-    for source in sources:
-        search_fn = scraper_map.get(source)
-        if not search_fn:
-            continue
-        # Music-only sources (Reverb/Discogs) only for music keywords.
-        if not matching.source_allowed(source, keywords, sources):
-            continue
-        try:
-            items = search_fn(
-                keywords=keywords,
-                max_price=float(max_price) if max_price else None,
-                min_price=float(min_price),
-                condition=condition,
-                limit=25,
-            )
-        except Exception:
-            continue
-        for it in items:
-            # SAME relevance gate as the push path (keywords + accessory denylist
-            # + excludes + colour/size). Previously this endpoint applied only a
-            # size/color check, which let raw junk (vinyl, cases, parts) through.
-            if not matching.matches(it.title, keywords, alert["color"],
-                                    alert["size"], it.size, exclude_keywords):
-                continue
-            price_pln = to_pln(it.price, it.currency)
-            if price_pln is not None:
-                if max_pln and price_pln > max_pln:
-                    continue
-                if min_pln and price_pln < min_pln:
-                    continue
-            results.append({
-                "id": it.id,
-                "title": it.title,
-                "price": it.price,
-                "currency": it.currency,
-                "price_pln": price_pln,
-                "url": it.url,
-                "image_url": it.image_url,
-                "source": it.source,
-            })
-
-    # sort by PLN-normalized price ascending (cheapest real deal first)
+    results = _scrape_alert(alert)
+    scored = deals.score(results)  # attaches discount_pct + deal_tier
     results.sort(key=lambda x: (x["price_pln"] is None, x["price_pln"] or 0))
-    return jsonify({"matches": results, "count": len(results)}), 200
+    return jsonify({
+        "matches": results,
+        "count": len(results),
+        "median_pln": scored["median_pln"],
+    }), 200
+
+
+@alerts_bp.route("/api/deals/top", methods=["GET"])
+@require_auth
+def top_deals():
+    """PREMIUM: the best deals the engine finds across ALL the user's active
+    alerts, ranked by how far below market (median) they are — no typing needed."""
+    from concurrent.futures import ThreadPoolExecutor
+    from server import deals
+
+    db = get_db()
+    plan = _get_user_plan(db, request.user_id)
+    if plan == "free":
+        return jsonify({"error": "Top Deals is a Premium feature", "code": "PREMIUM_ONLY"}), 403
+
+    cur = db.cursor()
+    cur.execute(
+        """SELECT id, name, keywords, size, color, max_price, min_price, sources,
+                  condition, exclude_keywords
+           FROM alerts WHERE user_id = %s AND is_active = TRUE""",
+        (request.user_id,),
+    )
+    alerts = cur.fetchall()
+    if not alerts:
+        return jsonify({"deals": [], "count": 0}), 200
+
+    def work(a):
+        res = _scrape_alert(a, limit=20)
+        deals.score(res)
+        picked = []
+        for r in res:
+            if r.get("deal_tier"):
+                r["alert_id"] = a["id"]
+                r["alert_name"] = a["name"]
+                picked.append(r)
+        return picked
+
+    all_deals = []
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for chunk in ex.map(work, list(alerts)):
+            all_deals.extend(chunk)
+
+    all_deals.sort(key=lambda x: -(x.get("discount_pct") or 0))
+    return jsonify({"deals": all_deals[:25], "count": len(all_deals)}), 200

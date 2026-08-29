@@ -37,6 +37,7 @@ def create_app() -> Flask:
     from server.legal import legal_bp
     from server.admin import admin_bp
     from server.webhooks import webhooks_bp
+    from server.chat import chat_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(alerts_bp)
@@ -45,6 +46,7 @@ def create_app() -> Flask:
     app.register_blueprint(legal_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(webhooks_bp)
+    app.register_blueprint(chat_bp)
 
     @app.route("/health")
     def health():

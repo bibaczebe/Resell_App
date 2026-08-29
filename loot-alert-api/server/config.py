@@ -72,6 +72,13 @@ FREE_ALERT_LIMIT = 3
 FREE_POLL_INTERVAL_MINUTES = 5
 PREMIUM_POLL_INTERVAL_MINUTES = 2
 
+# --- AI assistant (Claude) ---
+# Set a FRESH (rotated) key in Railway Variables — never commit it.
+ANTHROPIC_API_KEY = _clean_env("ANTHROPIC_API_KEY")
+# Default to the flagship; set ANTHROPIC_MODEL=claude-haiku-4-5 in Railway for a
+# much cheaper reseller chatbot if volume grows.
+ANTHROPIC_MODEL = _clean_env("ANTHROPIC_MODEL", "claude-opus-5")
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
