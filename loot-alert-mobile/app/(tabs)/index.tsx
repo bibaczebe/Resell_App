@@ -90,6 +90,9 @@ export default function DashboardScreen() {
             </View>
           ) : null}
         </View>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/settings")} hitSlop={10}>
+          <Feather name="settings" size={22} color={Colors.textMuted} />
+        </TouchableOpacity>
       </View>
 
       {loading ? (

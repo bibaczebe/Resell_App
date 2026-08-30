@@ -6,7 +6,7 @@ load_dotenv()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 REDIS_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
-JWT_EXPIRE_HOURS = 24 * 7  # 7 days
+JWT_EXPIRE_HOURS = 24 * 365  # 1 year — personal tool, log in once and stay in
 
 EXPO_ACCESS_TOKEN = os.environ.get("EXPO_ACCESS_TOKEN", "")
 

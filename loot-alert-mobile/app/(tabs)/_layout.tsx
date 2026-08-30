@@ -47,13 +47,9 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Feather name="message-circle" size={size} color={color} />,
         }}
       />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => <Feather name="settings" size={size} color={color} />,
-        }}
-      />
+      {/* Personal tool: Settings is reachable via the gear in the Alerts header,
+          not a bottom tab (keeps the bar focused on the deal-finding flow). */}
+      <Tabs.Screen name="settings" options={{ href: null }} />
     </Tabs>
   );
 }

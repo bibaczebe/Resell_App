@@ -8,7 +8,6 @@ import { MotiView } from "moti";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "../../constants/colors";
 import { GlassCard } from "../../components/ui/GlassCard";
-import { PricingSheet } from "../../components/PricingSheet";
 import { fetchMe, logout, deleteAccount } from "../../lib/auth";
 import { registerForPushNotifications } from "../../lib/notifications";
 import { api } from "../../lib/api";
@@ -26,7 +25,6 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showPricing, setShowPricing] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const versionTapCount = useRef(0);
   const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -176,45 +174,6 @@ export default function SettingsScreen() {
               </TouchableOpacity>
             ) : null}
           </View>
-          <View style={styles.row}>
-            <Feather
-              name="star"
-              size={16}
-              color={user && user.plan !== "free" ? Colors.violetLight : Colors.textMuted}
-            />
-            <Text style={[styles.rowText, user && user.plan !== "free" && { color: Colors.violetLight }]}>
-              Plan: {PLAN_LABEL[user?.plan ?? "free"] ?? "Free"}
-            </Text>
-          </View>
-          {user?.plan === "free" ? (
-            <TouchableOpacity
-              style={styles.upgradeBtn}
-              onPress={() => {
-                if (!user?.is_verified) {
-                  Alert.alert(
-                    "Verify your email",
-                    "Premium plans are available only to verified accounts. Verify your email first.",
-                    [
-                      { text: "Cancel", style: "cancel" },
-                      {
-                        text: "Verify now",
-                        onPress: () => router.push({ pathname: "/(auth)/verify", params: { email: user.email } }),
-                      },
-                    ]
-                  );
-                  return;
-                }
-                setShowPricing(true);
-              }}
-            >
-              <Feather name="zap" size={14} color="#fff" />
-              <Text style={styles.upgradeBtnText}>Upgrade to Premium</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.manageBtn} onPress={() => setShowPricing(true)}>
-              <Text style={styles.manageText}>Change plan</Text>
-            </TouchableOpacity>
-          )}
         </GlassCard>
 
         <GlassCard style={styles.section}>
@@ -278,8 +237,6 @@ export default function SettingsScreen() {
           <Text style={styles.deleteAccountText}>Delete account</Text>
         </TouchableOpacity>
       </MotiView>
-
-      <PricingSheet visible={showPricing} onClose={() => { setShowPricing(false); loadUser(); }} />
     </ScrollView>
   );
 }
