@@ -68,9 +68,13 @@ def _deal_line(d: dict) -> str:
     prof = d.get("estimated_profit_pln")
     prof_s = f"+{round(prof)} zł" if prof is not None else "?"
     price = round(d.get("price_pln") or 0)
+    resale = d.get("ai_resale_pln")
+    resale_s = f" (sprzedasz ~{round(resale)} zł)" if resale else ""
+    reason = d.get("ai_reason")
+    reason_s = f"\n  💡 {reason}" if reason else ""
     return (f"• *{d.get('title','')[:65]}*\n"
-            f"  {price} zł → ~{prof_s} zysk ({d.get('discount_pct')}% poniżej rynku) · "
-            f"{str(d.get('source','')).upper()}\n  {d.get('url','')}")
+            f"  kup {price} zł → ~{prof_s} zysk{resale_s} · "
+            f"{str(d.get('source','')).upper()}{reason_s}\n  {d.get('url','')}")
 
 
 def _send_top_deals(chat_id):
@@ -80,6 +84,11 @@ def _send_top_deals(chat_id):
     except Exception as e:
         logger.warning("telegram deals error: %s", e)
         deals = []
+    try:
+        from server.chat import ai_filter_deals
+        deals = ai_filter_deals(deals)  # AI keeps only genuine, correctly-priced flips
+    except Exception:
+        pass
     if not deals:
         _send(chat_id, "Brak wartościowych flipów w tej chwili — sprawdź za chwilę.")
         return
@@ -154,6 +163,14 @@ def push_new_deals():
         deals = _curated_deals()
     except Exception:
         return
+    # AI validation FIRST so we only ever mark/push genuine flips.
+    try:
+        from server.chat import ai_filter_deals
+        deals = ai_filter_deals(deals)
+    except Exception:
+        pass
+    if not deals:
+        return
     try:
         r = get_redis()
     except Exception:
@@ -162,7 +179,7 @@ def push_new_deals():
     for d in deals:
         key = f"tgseen:{d.get('source')}:{d.get('id')}"
         try:
-            if r.set(key, "1", nx=True, ex=3 * 86400):
+            if r.set(key, "1", nx=True, ex=7 * 86400):  # 7-day dedup (fewer repeats)
                 fresh.append(d)
         except Exception:
             pass

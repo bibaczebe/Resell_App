@@ -36,6 +36,14 @@ ACCESSORY_DENYLIST = {
     "brelok", "keychain", "smycz", "lanyard",
     "magnes", "magnet", "przypinka", "badge", "pin",
     "próbka", "probka", "sample", "gratis", "gadżet", "gadzet",
+    # Buy-back / dealer ads (they want to BUY, not sell) — never a flip
+    "skup", "skupujemy", "skupuje", "odkupię", "odkupie", "kupię", "kupie",
+    # Spare parts / mounts / consumables (esp. vacuums/electronics)
+    "uchwyt", "filtr", "filtry", "ssawka", "końcówka", "koncowka",
+    "nasadka", "wąż", "waz", "rura", "zamiennik",
+    # Screen protectors in more EU languages (AI catches the rest)
+    "näytönsuoja", "naytonsuoja", "skärmskydd", "skarmskydd", "panssarilasi",
+    "beschermfolie", "displayschutz",
 }
 
 # Keyword tokens that indicate a music/vinyl/instrument hunt. Reverb & Discogs

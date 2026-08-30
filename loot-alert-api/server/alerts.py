@@ -266,6 +266,7 @@ def _scrape_alert(alert, limit: int = 25) -> list[dict]:
                 "id": it.id, "title": it.title, "price": it.price,
                 "currency": it.currency, "price_pln": price_pln,
                 "url": it.url, "image_url": it.image_url, "source": it.source,
+                "description": it.description,
             })
     return results
 
@@ -418,5 +419,13 @@ def top_deals():
             continue
         seen.add(key)
         deduped.append(d)
+
+    # AI reads each candidate (title + description) and keeps only genuine,
+    # correctly-priced flips (rejects skup ads, accessories/parts, mispriced).
+    try:
+        from server.chat import ai_filter_deals
+        deduped = ai_filter_deals(deduped)
+    except Exception:
+        pass
 
     return jsonify({"deals": deduped[:30], "count": len(deduped)}), 200

@@ -27,6 +27,7 @@ class Listing:
     currency: str = "PLN"
     condition: str = "unknown"
     size: str | None = None
+    description: str | None = None  # captured where the search API provides it (for AI validation)
 
 
 def random_headers() -> dict:

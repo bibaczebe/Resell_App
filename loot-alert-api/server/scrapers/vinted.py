@@ -99,6 +99,18 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
         if not listing_id:
             continue
 
+        # Compose context for AI validation (Vinted catalog gives brand/status/size).
+        ctx_parts = []
+        if item.get("brand_title"):
+            ctx_parts.append(f"marka: {item['brand_title']}")
+        if item.get("size_title"):
+            ctx_parts.append(f"rozmiar: {item['size_title']}")
+        if item.get("status"):
+            ctx_parts.append(f"stan: {item['status']}")
+        if item.get("description"):
+            ctx_parts.append(str(item["description"])[:300])
+        description = " | ".join(ctx_parts) or None
+
         listings.append(Listing(
             id=listing_id,
             title=item.get("title", ""),
@@ -108,5 +120,6 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             source="vinted",
             currency=currency,
             size=item.get("size_title"),
+            description=description,
         ))
     return listings

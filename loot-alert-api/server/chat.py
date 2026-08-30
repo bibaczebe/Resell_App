@@ -133,6 +133,79 @@ def _converse(messages: list, max_rounds: int = 4) -> str:
     return _text(resp) if resp else ""
 
 
+def ai_filter_deals(deals: list[dict], max_items: int = 12) -> list[dict]:
+    """Have the AI read each candidate (title + description + category median) and
+    keep ONLY genuine, correctly-priced flips — rejecting buy-back/'skup' ads,
+    accessories/parts/mounts/filters/screen-protectors, incomplete items, and
+    mispriced ones (e.g. kids size vs adult median). Reprices to the realistic
+    resale of THAT exact item. Falls back to the input unchanged if AI is off."""
+    if not deals or not ANTHROPIC_API_KEY:
+        return deals
+    cand = deals[:max_items]
+    payload = []
+    for i, d in enumerate(cand):
+        payload.append({
+            "i": i,
+            "title": str(d.get("title", ""))[:120],
+            "opis": str(d.get("description") or "")[:300],
+            "cena_zl": round(d.get("price_pln") or 0),
+            "mediana_kategorii_zl": round(d.get("median_pln")) if d.get("median_pln") else None,
+            "zrodlo": d.get("source"),
+        })
+    prompt = (
+        "Oceń te oferty pod kątem REALNEGO flipa. Dla KAŻDEJ zdecyduj, czy to "
+        "prawdziwy, odsprzedawalny przedmiot z danej kategorii. ODRZUĆ (keep=false): "
+        "ogłoszenia skupu / 'kupię' / 'gotówka za' (ktoś chce KUPIĆ, nie sprzedać); "
+        "akcesoria i części (etui, folia/screen protector, uchwyt, filtr, ssawka, "
+        "ładowarka, kabel, sam pokrowiec); przedmioty niekompletne ('bez ładowarki/"
+        "bez ...'); oraz źle wycenione względem mediany (np. rozmiar dziecięcy przy "
+        "medianie dla dorosłych, uszkodzone, podróbki). "
+        "realistic_resale_pln = za ile REALNIE sprzedasz TEN konkretny egzemplarz "
+        "(po opisie, rozmiarze, stanie) — NIE mediana kategorii, jeśli egzemplarz jest gorszy. "
+        "keep=true tylko gdy po odjęciu 15 zł dostawy i ~5% prowizji zostaje sensowny zysk.\n"
+        "Zwróć WYŁĄCZNIE czysty JSON (bez komentarzy): "
+        '[{"i":<index>,"keep":<bool>,"realistic_resale_pln":<number>,"reason":"<krótko po polsku>"}]\n\n'
+        "OFERTY:\n" + json.dumps(payload, ensure_ascii=False)
+    )
+    try:
+        resp = _client().messages.create(
+            model=ANTHROPIC_MODEL, max_tokens=1500, system=SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = _text(resp).strip()
+        if raw.startswith("```"):
+            raw = raw.strip("`")
+            raw = raw[raw.find("["):]
+        raw = raw[raw.find("["): raw.rfind("]") + 1]
+        verdicts = {v["i"]: v for v in json.loads(raw) if isinstance(v, dict) and "i" in v}
+    except Exception as e:
+        logger.warning("ai_filter_deals failed, passing deals through: %s", e)
+        return deals
+
+    kept = []
+    for i, d in enumerate(cand):
+        v = verdicts.get(i)
+        if not v or not v.get("keep"):
+            continue
+        resale = v.get("realistic_resale_pln")
+        try:
+            resale = float(resale)
+        except (TypeError, ValueError):
+            resale = None
+        price = d.get("price_pln") or 0
+        if resale:
+            profit = resale - price - 15 - 0.05 * resale
+            if profit < 40:
+                continue
+            d["estimated_profit_pln"] = round(profit, 2)
+            d["ai_resale_pln"] = round(resale, 2)
+        d["ai_reason"] = str(v.get("reason", ""))[:200]
+        kept.append(d)
+
+    kept.sort(key=lambda x: -(x.get("estimated_profit_pln") or 0))
+    return kept
+
+
 @chat_bp.route("/api/chat", methods=["POST"])
 @require_auth
 def chat():

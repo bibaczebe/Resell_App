@@ -23,6 +23,7 @@ def score(results: list[dict]) -> dict:
 
     for r in results:
         p = r.get("price_pln")
+        r["median_pln"] = round(median, 2) if median else None  # travels with the deal for AI validation
         r["discount_pct"] = None
         r["deal_tier"] = None
         r["estimated_profit_pln"] = None

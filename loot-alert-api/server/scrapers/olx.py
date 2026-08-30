@@ -7,12 +7,22 @@ SCRAPE_PROXY_URL if the deploy IP gets blocked. The old RSS fallback was removed
 OLX discontinued those feeds and it was routed through the now-dead ScraperAPI key.
 """
 
+import re
 import logging
 from server.scrapers import Listing, random_headers, browser_get
 
 logger = logging.getLogger(__name__)
 
 OLX_API_BASE = "https://www.olx.pl/api/v1"
+
+
+def _clean_desc(item: dict) -> str | None:
+    d = item.get("description")
+    if not d:
+        return None
+    d = re.sub(r"<[^>]+>", " ", str(d))       # strip HTML tags
+    d = re.sub(r"\s+", " ", d).strip()
+    return d[:400] or None
 
 
 def _extract_price(item: dict) -> float | None:
@@ -90,5 +100,6 @@ def search(keywords: str, max_price: float | None = None, min_price: float = 0,
             url=item.get("url", ""),
             image_url=_extract_first_photo(item),
             source="olx",
+            description=_clean_desc(item),
         ))
     return listings
