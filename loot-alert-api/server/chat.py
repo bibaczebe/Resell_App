@@ -148,22 +148,25 @@ def ai_filter_deals(deals: list[dict], max_items: int = 12) -> list[dict]:
             "i": i,
             "title": str(d.get("title", ""))[:120],
             "opis": str(d.get("description") or "")[:300],
-            "cena_zl": round(d.get("price_pln") or 0),
-            "mediana_kategorii_zl": round(d.get("median_pln")) if d.get("median_pln") else None,
+            "cena_kupna_zl": round(d.get("price_pln") or 0),
+            "mediana_wystawien_zl": round(d.get("median_pln")) if d.get("median_pln") else None,
+            "najtansza_porownywalna_zl": round(d.get("min_pln")) if d.get("min_pln") else None,
             "zrodlo": d.get("source"),
         })
     prompt = (
-        "Oceń te oferty pod kątem REALNEGO flipa. Dla KAŻDEJ zdecyduj, czy to "
-        "prawdziwy, odsprzedawalny przedmiot z danej kategorii. ODRZUĆ (keep=false): "
-        "ogłoszenia skupu / 'kupię' / 'gotówka za' (ktoś chce KUPIĆ, nie sprzedać); "
-        "akcesoria i części (etui, folia/screen protector, uchwyt, filtr, ssawka, "
-        "ładowarka, kabel, sam pokrowiec); przedmioty niekompletne ('bez ładowarki/"
-        "bez ...'); oraz źle wycenione względem mediany (np. rozmiar dziecięcy przy "
-        "medianie dla dorosłych, uszkodzone, podróbki). "
-        "realistic_resale_pln = za ile REALNIE sprzedasz TEN konkretny egzemplarz "
-        "(po opisie, rozmiarze, stanie) — NIE mediana kategorii, jeśli egzemplarz jest gorszy. "
-        "keep=true tylko gdy po odjęciu 15 zł dostawy i ~5% prowizji zostaje sensowny zysk.\n"
-        "Zwróć WYŁĄCZNIE czysty JSON (bez komentarzy): "
+        "Jesteś ostrożnym resellerem sprzedającym na Vinted/OLX. Oceń każdą ofertę jako flip. "
+        "ODRZUĆ (keep=false): ogłoszenia skupu/'kupię'/'gotówka za' (ktoś chce KUPIĆ); "
+        "akcesoria i CZĘŚCI (etui, folia, uchwyt, filtr, ssawka, ładowarka, kabel, a przy "
+        "elektronice: rama/obudowa/housing/frame/płyta/taśma — część, nie urządzenie); "
+        "przedmioty niekompletne ('bez ...'); podróbki; oraz przedmioty z INNEJ podkategorii "
+        "niż fraza (np. 'pasek Makita' w wynikach dla narzędzia Makita — wyceń jako pasek, nie narzędzie).\n"
+        "realistic_resale_pln = OSTROŻNA cena, za jaką NAPRAWDĘ i SZYBKO sprzedasz TEN egzemplarz "
+        "na Vinted/OLX. WAŻNE: żeby sprzedać na Vinted/OLX trzeba zejść PONIŻEJ typowej ceny "
+        "wystawienia — celuj bliżej 'najtansza_porownywalna_zl', NIE mediany, i uwzględnij stan/"
+        "rozmiar/kompletność. Nie zakładaj sprzedaży powyżej rynku. Jeśli Twoja realna cena "
+        "sprzedaży jest podobna do ceny kupna — to NIE flip (keep=false).\n"
+        "keep=true tylko gdy po odjęciu 15 zł dostawy i ~5% prowizji zostaje solidny zysk (min ~40 zł).\n"
+        "Zwróć WYŁĄCZNIE czysty JSON: "
         '[{"i":<index>,"keep":<bool>,"realistic_resale_pln":<number>,"reason":"<krótko po polsku>"}]\n\n'
         "OFERTY:\n" + json.dumps(payload, ensure_ascii=False)
     )

@@ -312,8 +312,8 @@ CURATED_QUERIES = [
     {"kw": "nike jordan", "max": 700},
     {"kw": "new balance 550", "max": 450},
     {"kw": "iphone 13", "max": 2500},
-    {"kw": "dyson", "max": 1600},
-    {"kw": "makita", "max": 900},
+    {"kw": "dyson odkurzacz", "max": 1600},
+    {"kw": "makita wiertarka", "max": 900},
     {"kw": "lego star wars", "max": 900},
     {"kw": "ps5", "max": 2500},
 ]

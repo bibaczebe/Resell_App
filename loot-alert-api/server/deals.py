@@ -21,9 +21,11 @@ def score(results: list[dict]) -> dict:
     prices = sorted(r["price_pln"] for r in results if r.get("price_pln"))
     median = statistics.median(prices) if len(prices) >= 4 else None
 
+    low = prices[0] if prices else None  # cheapest comparable — conservative resale anchor
     for r in results:
         p = r.get("price_pln")
         r["median_pln"] = round(median, 2) if median else None  # travels with the deal for AI validation
+        r["min_pln"] = round(low, 2) if low else None
         r["discount_pct"] = None
         r["deal_tier"] = None
         r["estimated_profit_pln"] = None

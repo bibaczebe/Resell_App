@@ -41,6 +41,9 @@ ACCESSORY_DENYLIST = {
     # Spare parts / mounts / consumables (esp. vacuums/electronics)
     "uchwyt", "filtr", "filtry", "ssawka", "końcówka", "koncowka",
     "nasadka", "wąż", "waz", "rura", "zamiennik",
+    # Phone/electronics parts (a housing/frame/board is not the device)
+    "frame", "housing", "korpus", "ramka", "mainboard", "motherboard",
+    "płyta", "plyta", "taśma", "tasma", "złącze", "zlacze",
     # Screen protectors in more EU languages (AI catches the rest)
     "näytönsuoja", "naytonsuoja", "skärmskydd", "skarmskydd", "panssarilasi",
     "beschermfolie", "displayschutz",
