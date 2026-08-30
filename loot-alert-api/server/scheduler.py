@@ -289,6 +289,22 @@ def start_scheduler() -> BackgroundScheduler:
         max_instances=1,
         coalesce=True,
     )
+
+    def _telegram_deals_job():
+        try:
+            from server.telegram import push_new_deals
+            push_new_deals()
+        except Exception as e:
+            logger.warning("Telegram deals job error: %s", e)
+
+    scheduler.add_job(
+        _telegram_deals_job,
+        "interval",
+        minutes=20,
+        id="telegram_deals",
+        max_instances=1,
+        coalesce=True,
+    )
     scheduler.start()
     logger.info("Scheduler started (free: %dmin, premium: %dmin)",
                 FREE_POLL_INTERVAL_MINUTES, PREMIUM_POLL_INTERVAL_MINUTES)

@@ -79,6 +79,23 @@ ANTHROPIC_API_KEY = _clean_env("ANTHROPIC_API_KEY")
 # much cheaper reseller chatbot if volume grows.
 ANTHROPIC_MODEL = _clean_env("ANTHROPIC_MODEL", "claude-opus-5")
 
+# --- Telegram bot (primary personal interface) ---
+# Create the bot in @BotFather, put the token in Railway Variables (never commit).
+TELEGRAM_BOT_TOKEN = _clean_env("TELEGRAM_BOT_TOKEN")
+# Public base URL of THIS backend (for the Telegram webhook). Railway sets
+# RAILWAY_PUBLIC_DOMAIN; fall back to the known production host.
+APP_BASE_URL = _clean_env("APP_BASE_URL") or (
+    "https://" + _clean_env("RAILWAY_PUBLIC_DOMAIN")
+    if _clean_env("RAILWAY_PUBLIC_DOMAIN")
+    else "https://resellapp-production.up.railway.app"
+)
+
+# --- Reselling economics (used to judge real flip potential, not just "cheap") ---
+SHIPPING_PLN = 15.0        # typical PL paczkomat/courier cost to factor into margin
+SELL_FEE_RATE = 0.05       # rough marketplace/payment fee on the resale
+MIN_FLIP_PROFIT_PLN = 40.0  # minimum expected profit after shipping+fees to bother
+MIN_RESALE_VALUE_PLN = 80.0  # category must resell for at least this (kills socks/packaging)
+
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",

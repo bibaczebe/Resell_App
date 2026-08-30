@@ -38,6 +38,7 @@ def create_app() -> Flask:
     from server.admin import admin_bp
     from server.webhooks import webhooks_bp
     from server.chat import chat_bp
+    from server.telegram import telegram_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(alerts_bp)
@@ -47,6 +48,7 @@ def create_app() -> Flask:
     app.register_blueprint(admin_bp)
     app.register_blueprint(webhooks_bp)
     app.register_blueprint(chat_bp)
+    app.register_blueprint(telegram_bp)
 
     @app.route("/health")
     def health():
@@ -676,5 +678,11 @@ def create_app() -> Flask:
         start_scheduler()
     except Exception as e:
         logging.warning("Scheduler start skipped: %s", e)
+
+    try:
+        from server.telegram import setup_webhook
+        setup_webhook()
+    except Exception as e:
+        logging.warning("Telegram webhook setup skipped: %s", e)
 
     return app

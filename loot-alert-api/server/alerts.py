@@ -300,12 +300,21 @@ def alert_current_matches(alert_id: int):
 # Curated "trending flips" the engine scans for everyone, so the premium feed is
 # valuable even before a user has set up their own alerts — the app's automatic-
 # discovery core, not just what the user typed.
+# High-resale flip categories: branded outerwear, real sneakers, electronics,
+# power tools, retired LEGO — things that actually resell for enough that the
+# margin survives shipping. (Low-value junk like socks/packaging is filtered by
+# the denylist + flip-worthiness margin check, so it never reaches the feed.)
 CURATED_QUERIES = [
-    {"kw": "iphone 13", "max": 2500}, {"kw": "airpods pro", "max": 900},
-    {"kw": "ps5", "max": 2500}, {"kw": "nike air max", "max": 600},
-    {"kw": "lego star wars", "max": 900}, {"kw": "dyson", "max": 1600},
-    {"kw": "gopro", "max": 1500}, {"kw": "macbook air", "max": 4500},
-    {"kw": "carhartt", "max": 400}, {"kw": "levis 501", "max": 250},
+    {"kw": "the north face kurtka", "max": 450},
+    {"kw": "carhartt kurtka", "max": 450},
+    {"kw": "patagonia kurtka", "max": 500},
+    {"kw": "nike jordan", "max": 700},
+    {"kw": "new balance 550", "max": 450},
+    {"kw": "iphone 13", "max": 2500},
+    {"kw": "dyson", "max": 1600},
+    {"kw": "makita", "max": 900},
+    {"kw": "lego star wars", "max": 900},
+    {"kw": "ps5", "max": 2500},
 ]
 
 
@@ -333,12 +342,12 @@ def _curated_deals() -> list[dict]:
         deals.score(res)
         picked = []
         for r in res:
-            if r.get("discount_pct") is not None:
+            if r.get("flip_worthy"):  # real margin after shipping+fees, not just cheap
                 r["alert_id"] = None
                 r["alert_name"] = f"Trending · {c['kw']}"
                 r["curated"] = True
                 picked.append(r)
-        return sorted(picked, key=lambda z: -(z.get("discount_pct") or 0))[:4]
+        return sorted(picked, key=lambda z: -(z.get("estimated_profit_pln") or 0))[:4]
 
     out = []
     with ThreadPoolExecutor(max_workers=4) as ex:
@@ -379,16 +388,14 @@ def top_deals():
     def work(a):
         res = _scrape_alert(a, limit=20)
         deals.score(res)
+        out = []
         for r in res:
-            r["alert_id"] = a["id"]
-            r["alert_name"] = a["name"]
-            r["curated"] = False
-        below = [r for r in res if r.get("discount_pct") is not None]
-        if below:
-            return below
-        priced = sorted((r for r in res if r.get("price_pln") is not None),
-                        key=lambda x: x["price_pln"])
-        return priced[:5]
+            if r.get("flip_worthy"):  # only real, shipping-adjusted flips
+                r["alert_id"] = a["id"]
+                r["alert_name"] = a["name"]
+                r["curated"] = False
+                out.append(r)
+        return out
 
     all_deals = []
     if alerts:
@@ -396,16 +403,16 @@ def top_deals():
             for chunk in ex.map(work, list(alerts)):
                 all_deals.extend(chunk)
 
-    # Always add curated trending finds so the feed shows "more" than the user's
-    # own alerts (and works for users with no alerts yet).
+    # Add curated high-resale trending finds so the feed shows more than the
+    # user's own alerts (and works for users with no alerts yet).
     try:
         all_deals.extend(_curated_deals())
     except Exception:
         pass
 
-    # Dedupe (a curated find may overlap a user's alert) keeping the best discount.
+    # Dedupe; rank by estimated profit (real money left after shipping+fees).
     seen, deduped = set(), []
-    for d in sorted(all_deals, key=lambda x: -(x.get("discount_pct") or 0)):
+    for d in sorted(all_deals, key=lambda x: -(x.get("estimated_profit_pln") or 0)):
         key = f"{d.get('source')}:{d.get('id')}"
         if key in seen:
             continue

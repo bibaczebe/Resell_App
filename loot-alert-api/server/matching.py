@@ -29,6 +29,13 @@ ACCESSORY_DENYLIST = {
     "hülle", "huelle", "schutzhülle", "panzerglas", "ladegerät",  # DE
     "capa", "capinha",                     # PT
     "dėklas",                              # LT
+    # Low-value / non-flippable junk (margin < shipping) — PL + EN
+    "skarpetki", "skarpety", "skarpetka", "socks",
+    "opakowanie", "pudełko", "pudelko", "packaging",
+    "naklejka", "naklejki", "sticker", "stickers",
+    "brelok", "keychain", "smycz", "lanyard",
+    "magnes", "magnet", "przypinka", "badge", "pin",
+    "próbka", "probka", "sample", "gratis", "gadżet", "gadzet",
 }
 
 # Keyword tokens that indicate a music/vinyl/instrument hunt. Reverb & Discogs
