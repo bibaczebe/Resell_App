@@ -160,15 +160,11 @@ def push_new_deals():
         return
     from server.alerts import _curated_deals
     try:
-        deals = _curated_deals()
+        deals = _curated_deals()  # heuristic-only (denylist + flip_worthy) — NO AI, so the
+                                  # hourly background job costs zero tokens. AI validation is
+                                  # reserved for on-demand /deals and /check.
     except Exception:
         return
-    # AI validation FIRST so we only ever mark/push genuine flips.
-    try:
-        from server.chat import ai_filter_deals
-        deals = ai_filter_deals(deals)
-    except Exception:
-        pass
     if not deals:
         return
     try:

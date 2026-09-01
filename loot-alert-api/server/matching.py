@@ -46,7 +46,14 @@ ACCESSORY_DENYLIST = {
     "płyta", "plyta", "taśma", "tasma", "złącze", "zlacze",
     # Screen protectors in more EU languages (AI catches the rest)
     "näytönsuoja", "naytonsuoja", "skärmskydd", "skarmskydd", "panssarilasi",
-    "beschermfolie", "displayschutz",
+    "beschermfolie", "displayschutz", "kryty",
+    # Damaged / for-parts (resells for far less than a working unit's median)
+    "uszkodzony", "uszkodzona", "uszkodzone", "zbity", "zbita", "zbite",
+    "pęknięty", "pekniety", "pęknięta", "peknieta", "niesprawny", "niesprawna",
+    "wymiany", "rozbity", "rozbita",
+    # Sub-items that pollute a category search (shorts/games/pads in shoe/console feeds)
+    "spodenki", "spodnie", "plecak", "lampka", "mystery", "słuchawki", "sluchawki",
+    "gra", "gry", "pad", "pady",
 }
 
 # Keyword tokens that indicate a music/vinyl/instrument hunt. Reverb & Discogs

@@ -48,7 +48,7 @@ def score(results: list[dict]) -> dict:
             median >= MIN_RESALE_VALUE_PLN     # category actually resells for enough
             and p >= 30                        # ignore sub-30 zł items (usually mis-categorized junk in a pricey set)
             and profit >= MIN_FLIP_PROFIT_PLN  # real margin after shipping + fees
-            and disc >= GOOD_PCT               # genuinely below market
+            and GOOD_PCT <= disc <= 75         # below market, but >75% almost always = wrong sub-category (a case in a phone search), not a real deal
         )
 
     return {"results": results, "median_pln": round(median, 2) if median else None}
