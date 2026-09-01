@@ -75,9 +75,10 @@ PREMIUM_POLL_INTERVAL_MINUTES = 2
 # --- AI assistant (Claude) ---
 # Set a FRESH (rotated) key in Railway Variables — never commit it.
 ANTHROPIC_API_KEY = _clean_env("ANTHROPIC_API_KEY")
-# Default to the flagship; set ANTHROPIC_MODEL=claude-haiku-4-5 in Railway for a
-# much cheaper reseller chatbot if volume grows.
-ANTHROPIC_MODEL = _clean_env("ANTHROPIC_MODEL", "claude-opus-5")
+# Default to CHEAP Haiku (deal validation runs on a schedule — Opus was burning
+# ~$2/day). Set ANTHROPIC_MODEL=claude-opus-5 in Railway only if you want the
+# pricier model for the /check verdict.
+ANTHROPIC_MODEL = _clean_env("ANTHROPIC_MODEL", "claude-haiku-4-5")
 
 # --- Telegram bot (primary personal interface) ---
 # Create the bot in @BotFather, put the token in Railway Variables (never commit).

@@ -300,7 +300,7 @@ def start_scheduler() -> BackgroundScheduler:
     scheduler.add_job(
         _telegram_deals_job,
         "interval",
-        minutes=20,
+        minutes=60,  # hourly (was 20) — the AI validation costs tokens per run
         id="telegram_deals",
         max_instances=1,
         coalesce=True,
